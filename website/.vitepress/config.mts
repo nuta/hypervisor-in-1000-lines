@@ -33,6 +33,7 @@ export default defineConfig({
               { link: '/en/01-getting-started', text: '01. Getting Started' },
               { link: '/en/02-boot', text: '02. Boot' },
               { link: '/en/03-hello-world', text: '03. Hello World' },
+              { link: '/en/04-memory-allocation', text: '04. Memory Allocation' },
             ]
           },
           {
