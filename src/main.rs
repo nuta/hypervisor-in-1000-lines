@@ -1,6 +1,9 @@
 #![no_std]
 #![no_main]
 
+#[macro_use]
+mod print;
+
 use core::arch::asm;
 use core::panic::PanicInfo;
 
@@ -18,10 +21,12 @@ pub extern "C" fn boot() -> ! {
 }
 
 fn main() -> ! {
+    println!("\nBooting hypervisor...");
     loop {}
 }
 
 #[panic_handler]
-pub fn panic_handler(_info: &PanicInfo) -> ! {
+pub fn panic_handler(info: &PanicInfo) -> ! {
+    println!("panic: {}", info);
     loop {}
 }

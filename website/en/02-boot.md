@@ -8,13 +8,9 @@ In this chapter, we'll write a minimal kernel for RISC-V, to be used as the base
 
 The kernel will be written in Rust, but it's still very similar to what you'd write in C (see [OS in 1000 lines](https://operating-system-in-1000-lines.vercel.app/en/04-boot)). Enjoy comparing the two and notice the power of Rust.
 
-## Supervisor Binary Interface (SBI)
+## OpenSBI
 
 Once the QEMU `virt` machine, the virtual computer we use in this book, does not boot the our hypervisor directly. Instead, it starts OpenSBI, a firmware similar to BIOS/UEFI.
-
-OpenSBI loads our hypervisor, and provides the Supervisor Binary Interface (SBI) to the OS. The SBI is an API for OS kernels: it defines what the firmware (OpenSBI) provides to an OS.
-
-The SBI specification is [published on GitHub](https://github.com/riscv-non-isa/riscv-sbi-doc/releases). It defines useful features such as displaying characters on the debug console (e.g., serial port), reboot/shutdown, and timer settings.
 
 ## Let's boot OpenSBI
 
