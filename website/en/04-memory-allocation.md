@@ -76,13 +76,16 @@ pub static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator::new();
 ```
 
 
-```rust [src/main.rs] {1-4,9}
+```rust [src/main.rs] {4-5,12}
 unsafe extern "C" {
+    static mut __bss: u8;
+    static mut __bss_end: u8;
     static mut __heap: u8;
     static mut __heap_end: u8;
 }
 
 fn main() -> ! {
+    init_bss();
     println!("\nBooting hypervisor...");
 
     allocator::GLOBAL_ALLOCATOR.init(&raw mut __heap, &raw mut __heap_end);
@@ -95,10 +98,9 @@ fn main() -> ! {
 extern crate alloc;
 ```
 
-
-```rust [src/main.rs] {6-10}
+```rust [src/main.rs] {4,6-10}
 fn main() -> ! {
-    println!("\nBooting hypervisor...");
+    /* ... */
 
     allocator::GLOBAL_ALLOCATOR.init(&raw mut __heap, &raw mut __heap_end);
 

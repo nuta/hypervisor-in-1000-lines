@@ -48,8 +48,9 @@ This inline assembly is simple. Fill the following registers and jump into the f
 
 Now we can use this function in our `boot` function:
 
-```rust [src/main.rs] {2-5}
+```rust [src/main.rs] {3-6}
 fn main() -> ! {
+    /* ... */
     print::sbi_putchar(b'H');
     print::sbi_putchar(b'i');
     print::sbi_putchar(b'!');
@@ -94,8 +95,9 @@ macro_rules! println {
 mod print;
 ```
 
-```rust [src/main.rs] {2}
+```rust [src/main.rs] {7}
 fn main() -> ! {
+    init_bss();
     println!("\nBooting hypervisor...");
     loop {}
 }
