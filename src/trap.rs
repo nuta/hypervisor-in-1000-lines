@@ -1,5 +1,3 @@
-use core::arch::asm;
-
 macro_rules! read_csr {
     ($csr:expr) => {{
         let mut value: u64;
@@ -50,10 +48,5 @@ pub fn trap_handler() -> ! {
         _ => panic!("unknown scause: {:#x}", scause),
     };
 
-    println!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
-    loop {
-        unsafe {
-            asm!("wfi");
-        }
-    }
+    panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
 }

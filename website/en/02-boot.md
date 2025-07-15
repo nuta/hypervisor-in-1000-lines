@@ -289,7 +289,11 @@ use core::panic::PanicInfo;
 
 #[panic_handler]
 pub fn panic_handler(info: &PanicInfo) -> ! {
-    loop {} // infinite loop
+    loop {
+        unsafe {
+            core::arch::asm!("wfi"); // Wait for an interrupt (idle loop)
+        }
+    }
 }
 ```
 

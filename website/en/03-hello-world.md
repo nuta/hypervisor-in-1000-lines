@@ -115,7 +115,11 @@ Booting hypervisor...
 #[panic_handler]
 pub fn panic_handler(info: &PanicInfo) -> ! {
     println!("panic: {}", info);
-    loop {}
+    loop {
+        unsafe {
+            core::arch::asm!("wfi");
+        }
+    }
 }
 ```
 
@@ -126,8 +130,6 @@ mod trap;
 ```
 
 ```rust [src/trap.rs]
-use core::arch::asm;
-
 macro_rules! read_csr {
     ($csr:expr) => {{
         let mut value: u64;
@@ -178,14 +180,7 @@ pub fn trap_handler() -> ! {
         _ => panic!("unknown scause: {:#x}", scause),
     };
 
-    println!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
-
-    // Idle loop: halt the computer.
-    loop {
-        unsafe {
-            asm!("wfi"); // Wait for an interrupt (idle loop)
-        }
-    }
+    panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
 }
 ```
 

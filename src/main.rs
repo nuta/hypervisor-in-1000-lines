@@ -84,5 +84,9 @@ fn main() -> ! {
 #[panic_handler]
 pub fn panic_handler(info: &PanicInfo) -> ! {
     println!("panic: {}", info);
-    loop {}
+    loop {
+        unsafe {
+            core::arch::asm!("wfi");
+        }
+    }
 }
