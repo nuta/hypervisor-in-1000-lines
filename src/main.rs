@@ -8,6 +8,7 @@ mod print;
 mod allocator;
 mod guest_page_table;
 mod trap;
+mod vcpu;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
@@ -15,6 +16,7 @@ use core::panic::PanicInfo;
 use crate::{
     allocator::alloc_pages,
     guest_page_table::{GuestPageTable, PTE_R, PTE_W, PTE_X},
+    vcpu::VCpu,
 };
 
 #[unsafe(no_mangle)]
@@ -62,23 +64,8 @@ fn main() -> ! {
     let mut table = GuestPageTable::new();
     table.map(guest_entry, kernel_memory as u64, PTE_R | PTE_W | PTE_X);
 
-    let mut hstatus: u64 = 0;
-    hstatus |= 2 << 32; // VSXL: XLEN for VS-mode (64-bit)
-    hstatus |= 1 << 7; // SPV: Supervisor Previous Virtualization mode
-
-    unsafe {
-        asm!(
-            "csrw hstatus, {hstatus}",
-            "csrw hgatp, {hgatp}",
-            "csrw sepc, {sepc}",
-            "sret",
-            hstatus = in(reg) hstatus,
-            hgatp = in(reg) table.hgatp(),
-            sepc = in(reg) guest_entry,
-        );
-    }
-
-    unreachable!();
+    let mut vcpu = VCpu::new(&table, guest_entry);
+    vcpu.run();
 }
 
 #[panic_handler]
