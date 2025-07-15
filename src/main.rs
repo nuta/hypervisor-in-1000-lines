@@ -6,10 +6,16 @@ extern crate alloc;
 #[macro_use]
 mod print;
 mod allocator;
+mod guest_page_table;
 mod trap;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
+
+use crate::{
+    allocator::alloc_pages,
+    guest_page_table::{GuestPageTable, PTE_R, PTE_W, PTE_X},
+};
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.boot")]
@@ -44,13 +50,35 @@ fn main() -> ! {
 
     allocator::GLOBAL_ALLOCATOR.init(&raw mut __heap, &raw mut __heap_end);
 
-    let mut v = alloc::vec::Vec::new();
-    v.push('a');
-    v.push('b');
-    v.push('c');
-    println!("v = {:?}", v);
+    let kernel_image = include_bytes!("../guest.bin");
+    let guest_entry = 0x100000;
+    let kernel_memory = alloc_pages(kernel_image.len());
+    unsafe {
+        let dst = kernel_memory as *mut u8;
+        let src = kernel_image.as_ptr();
+        core::ptr::copy_nonoverlapping(src, dst, kernel_image.len());
+    }
 
-    loop {}
+    let mut table = GuestPageTable::new();
+    table.map(guest_entry, kernel_memory as u64, PTE_R | PTE_W | PTE_X);
+
+    let mut hstatus = 0;
+    hstatus |= 2u64 << 32; // VSXL: XLEN for VS-mode (64-bit)
+    hstatus |= 1u64 << 7; // SPV: Supervisor Previous Virtualization mode (HS-mode)
+
+    unsafe {
+        asm!(
+            "csrw hstatus, {hstatus}",
+            "csrw hgatp, {hgatp}",
+            "csrw sepc, {sepc}",
+            "sret",
+            hstatus = in(reg) hstatus,
+            hgatp = in(reg) table.hgatp(),
+            sepc = in(reg) guest_entry,
+        );
+    }
+
+    unreachable!();
 }
 
 #[panic_handler]

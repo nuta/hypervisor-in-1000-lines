@@ -41,3 +41,8 @@ unsafe impl GlobalAlloc for BumpAllocator {
 
 #[global_allocator]
 pub static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator::new();
+
+pub fn alloc_pages(len: usize) -> *mut u8 {
+    let layout = Layout::from_size_align(len, 0x1000).unwrap();
+    unsafe { GLOBAL_ALLOCATOR.alloc_zeroed(layout) as *mut u8 }
+}
