@@ -184,7 +184,7 @@ pub fn trap_handler() -> ! {
 }
 ```
 
-```ld [hypervisor.ld] {4-5}
+```txt [hypervisor.ld] {4-5}
     .text :{
         KEEP(*(.text.boot));
         *(.text .text.*);
