@@ -18,8 +18,8 @@ fn main() -> ! {
     /* ... */
 
     let mut hstatus: u64 = 0;
-    hstatus |= 2u64 << 32; // VSXL: XLEN for VS-mode (64-bit)
-    hstatus |= 1u64 << 7; // SPV: Supervisor Previous Virtualization mode (HS-mode)
+    hstatus |= 2 << 32; // VSXL: XLEN for VS-mode (64-bit)
+    hstatus |= 1 << 7; // SPV: Supervisor Previous Virtualization mode
 
     let sepc: u64 = 0x1234abcd;
     unsafe {

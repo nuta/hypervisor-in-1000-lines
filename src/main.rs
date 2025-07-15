@@ -62,9 +62,9 @@ fn main() -> ! {
     let mut table = GuestPageTable::new();
     table.map(guest_entry, kernel_memory as u64, PTE_R | PTE_W | PTE_X);
 
-    let mut hstatus = 0;
-    hstatus |= 2u64 << 32; // VSXL: XLEN for VS-mode (64-bit)
-    hstatus |= 1u64 << 7; // SPV: Supervisor Previous Virtualization mode (HS-mode)
+    let mut hstatus: u64 = 0;
+    hstatus |= 2 << 32; // VSXL: XLEN for VS-mode (64-bit)
+    hstatus |= 1 << 7; // SPV: Supervisor Previous Virtualization mode
 
     unsafe {
         asm!(
