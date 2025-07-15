@@ -6,6 +6,7 @@ extern crate alloc;
 #[macro_use]
 mod print;
 mod allocator;
+mod trap;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
@@ -35,6 +36,8 @@ fn main() -> ! {
         let bss_start = &raw mut __bss;
         let bss_size = (&raw mut __bss_end as usize) - (&raw mut __bss as usize);
         core::ptr::write_bytes(bss_start, 0, bss_size);
+
+        asm!("csrw stvec, {}", in(reg) trap::trap_handler as usize);
     }
 
     println!("\nBooting hypervisor...");

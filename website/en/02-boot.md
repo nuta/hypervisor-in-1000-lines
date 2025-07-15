@@ -170,10 +170,8 @@ SECTIONS {
     . = 0x80200000;
 
     .text :{
-        KEEP(*(.text.boot));
+        KEEP(*(.text.boot)); // Keep `boot` function at the beginning
         *(.text .text.*);
-        . = ALIGN(4);
-        *(.text.stvec);
     }
 
     .rodata : ALIGN(4) {
