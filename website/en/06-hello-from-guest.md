@@ -266,3 +266,124 @@ map: 00100000 -> 80306000
 panic: panicked at src/trap.rs:140:9:
 SBI call: eid=0x1, fid=0x0, a0=0x41 ('A')
 ```
+
+## Restoring the guest state
+
+```asm [guest.S] {3-6}
+    li a0, 'A'      # Parameter: 'A'
+    ecall           # Call SBI (hypervisor)
+    li a0, 'B'      # Parameter: 'B'
+    ecall           # Call SBI (hypervisor)
+    li a0, 'C'      # Parameter: 'C'
+    ecall           # Call SBI (hypervisor)
+```
+
+```rust [src/vcpu.rs] {1,13-45,53-83}
+use core::mem::offset_of;
+
+impl VCpu {
+    pub fn run(&mut self) -> ! {
+        unsafe {
+            asm!(
+                "csrw hstatus, {hstatus}",
+                "csrw sstatus, {sstatus}",
+                "csrw sscratch, {sscratch}",
+                "csrw hgatp, {hgatp}",
+                "csrw sepc, {sepc}",
+
+                // Restore general-purpose registers.
+                "mv a0, {sscratch}",
+                "ld ra, {ra_offset}(a0)",
+                "ld sp, {sp_offset}(a0)",
+                "ld gp, {gp_offset}(a0)",
+                "ld tp, {tp_offset}(a0)",
+                "ld t0, {t0_offset}(a0)",
+                "ld t1, {t1_offset}(a0)",
+                "ld t2, {t2_offset}(a0)",
+                "ld s0, {s0_offset}(a0)",
+                "ld s1, {s1_offset}(a0)",
+                "ld a1, {a1_offset}(a0)",
+                "ld a2, {a2_offset}(a0)",
+                "ld a3, {a3_offset}(a0)",
+                "ld a4, {a4_offset}(a0)",
+                "ld a5, {a5_offset}(a0)",
+                "ld a6, {a6_offset}(a0)",
+                "ld a7, {a7_offset}(a0)",
+                "ld s2, {s2_offset}(a0)",
+                "ld s3, {s3_offset}(a0)",
+                "ld s4, {s4_offset}(a0)",
+                "ld s5, {s5_offset}(a0)",
+                "ld s6, {s6_offset}(a0)",
+                "ld s7, {s7_offset}(a0)",
+                "ld s8, {s8_offset}(a0)",
+                "ld s9, {s9_offset}(a0)",
+                "ld s10, {s10_offset}(a0)",
+                "ld s11, {s11_offset}(a0)",
+                "ld t3, {t3_offset}(a0)",
+                "ld t4, {t4_offset}(a0)",
+                "ld t5, {t5_offset}(a0)",
+                "ld t6, {t6_offset}(a0)",
+                "ld a0, {a0_offset}(a0)",
+
+                "sret",
+                hstatus = in(reg) self.hstatus,
+                sstatus = in(reg) self.sstatus,
+                hgatp = in(reg) self.hgatp,
+                sepc = in(reg) self.sepc,
+                sscratch = in(reg) (self as *mut VCpu as usize),
+                ra_offset = const offset_of!(VCpu, ra),
+                sp_offset = const offset_of!(VCpu, sp),
+                gp_offset = const offset_of!(VCpu, gp),
+                tp_offset = const offset_of!(VCpu, tp),
+                t0_offset = const offset_of!(VCpu, t0),
+                t1_offset = const offset_of!(VCpu, t1),
+                t2_offset = const offset_of!(VCpu, t2),
+                s0_offset = const offset_of!(VCpu, s0),
+                s1_offset = const offset_of!(VCpu, s1),
+                a0_offset = const offset_of!(VCpu, a0),
+                a1_offset = const offset_of!(VCpu, a1),
+                a2_offset = const offset_of!(VCpu, a2),
+                a3_offset = const offset_of!(VCpu, a3),
+                a4_offset = const offset_of!(VCpu, a4),
+                a5_offset = const offset_of!(VCpu, a5),
+                a6_offset = const offset_of!(VCpu, a6),
+                a7_offset = const offset_of!(VCpu, a7),
+                s2_offset = const offset_of!(VCpu, s2),
+                s3_offset = const offset_of!(VCpu, s3),
+                s4_offset = const offset_of!(VCpu, s4),
+                s5_offset = const offset_of!(VCpu, s5),
+                s6_offset = const offset_of!(VCpu, s6),
+                s7_offset = const offset_of!(VCpu, s7),
+                s8_offset = const offset_of!(VCpu, s8),
+                s9_offset = const offset_of!(VCpu, s9),
+                s10_offset = const offset_of!(VCpu, s10),
+                s11_offset = const offset_of!(VCpu, s11),
+                t3_offset = const offset_of!(VCpu, t3),
+                t4_offset = const offset_of!(VCpu, t4),
+                t5_offset = const offset_of!(VCpu, t5),
+                t6_offset = const offset_of!(VCpu, t6),
+            );
+        }
+    }
+}
+```
+
+```rust [src/trap.rs]
+    if scause == 10 {
+        println!("SBI call: eid={:#x}, fid={:#x}, a0={:#x} ('{}')", vcpu.a7, vcpu.a6, vcpu.a0, vcpu.a0 as u8 as char);
+        vcpu.sepc = sepc + 4; // Resume the guest after ECALL instruction.
+    } else {
+        panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
+    }
+
+    vcpu.run();
+```
+
+```
+$ ./run.sh
+Booting hypervisor...
+map: 00100000 -> 80306000
+SBI call: eid=0x1, fid=0x0, a0=0x41 ('A')
+SBI call: eid=0x1, fid=0x0, a0=0x42 ('B')
+SBI call: eid=0x1, fid=0x0, a0=0x43 ('C')
+```

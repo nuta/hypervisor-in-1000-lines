@@ -137,8 +137,11 @@ pub fn handle_trap(vcpu: *mut VCpu) -> ! {
 
     let vcpu = unsafe { &mut *vcpu };
     if scause == 10 {
-        panic!("SBI call: eid={:#x}, fid={:#x}, a0={:#x} ('{}')", vcpu.a7, vcpu.a6, vcpu.a0, vcpu.a0 as u8 as char);
+        println!("SBI call: eid={:#x}, fid={:#x}, a0={:#x} ('{}')", vcpu.a7, vcpu.a6, vcpu.a0, vcpu.a0 as u8 as char);
+        vcpu.sepc = sepc + 4;
+    } else {
+        panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
     }
 
-    panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
+    vcpu.run();
 }
