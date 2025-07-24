@@ -1,4 +1,6 @@
 use core::{arch::naked_asm, mem::offset_of};
+use alloc::vec::Vec;
+use spin::Mutex;
 
 use crate::vcpu::VCpu;
 
@@ -96,6 +98,8 @@ pub extern "C" fn trap_handler() -> ! {
     );
 }
 
+static CONSOLE_BUFFER: Mutex<Vec<u8>> = Mutex::new(Vec::new());
+
 fn handle_sbi_call(vcpu: &mut VCpu) {
     let eid = vcpu.a7;
     let fid = vcpu.a6;
@@ -105,7 +109,14 @@ fn handle_sbi_call(vcpu: &mut VCpu) {
         // Console Putchar.
         (0x1, 0x0) => {
             let ch = vcpu.a0 as u8;
-            println!("[guest] {}", ch as char);
+            let mut buffer = CONSOLE_BUFFER.lock();
+            if ch == b'\n' {
+                let output = core::str::from_utf8(&buffer).unwrap_or("(not utf-8)");
+                println!("[guest] {}", output);
+                buffer.clear();
+            } else {
+                buffer.push(ch);
+            }
             Ok(0)
         }
         _ => {
