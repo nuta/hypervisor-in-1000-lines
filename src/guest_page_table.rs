@@ -69,7 +69,6 @@ impl GuestPageTable {
         }
 
         let entry = table.entry_by_addr(guest_paddr, 0);
-        println!("map: {:08x} -> {:08x}", guest_paddr, host_paddr);
         assert!(!entry.is_valid(), "already mapped");
         *entry = Entry::new(host_paddr, flags | PTE_V | PTE_U);
     }
