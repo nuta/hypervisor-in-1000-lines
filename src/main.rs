@@ -15,7 +15,7 @@ use core::arch::asm;
 use core::panic::PanicInfo;
 
 use crate::{
-    guest_page_table::GuestPageTable, linux_loader::GUEST_BASE_ADDR, vcpu::VCpu
+    guest_page_table::GuestPageTable, linux_loader::{GUEST_BASE_ADDR, GUEST_DTB_ADDR}, vcpu::VCpu
 };
 
 #[unsafe(no_mangle)]
@@ -56,7 +56,7 @@ fn main() -> ! {
     linux_loader::load_linux_kernel(&mut table, kernel_image);
     let mut vcpu = VCpu::new(&table, GUEST_BASE_ADDR);
     vcpu.a0 = 0; // hart ID
-    vcpu.a1 = 0xdeadbeef_00000000; // device tree address
+    vcpu.a1 = GUEST_DTB_ADDR; // device tree address
     vcpu.run();
 }
 
