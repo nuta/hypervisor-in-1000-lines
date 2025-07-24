@@ -205,3 +205,98 @@ $ ./run.sh
 [guest] [    0.000000] [<ffffffff8037ce04>] init_IRQ+0x88/0xba
 [guest] [    0.000000] [<ffffffff8037b334>] start_kernel+0x360/0x428
 ```
+
+## Define PLIC
+
+Linux complains that it did not find any interrupt controller. Let's define a PLIC device in the device tree so that the kernel can recognize it. This is off-topic and not related to SBI, but it's a trivial thing to do:
+
+```rs [src/linux_loader.rs] {4-9,14-22}
+    fdt.property_string("mmu-type", "riscv,sv48")?;
+    fdt.property_string("riscv,isa", "rv64imafdc")?;
+
+    let intc_node = fdt.begin_node("interrupt-controller")?;
+    fdt.property_u32("#interrupt-cells", 1)?;
+    fdt.property_null("interrupt-controller")?;
+    fdt.property_string("compatible", "riscv,cpu-intc")?;
+    fdt.property_phandle(1)?;
+    fdt.end_node(intc_node)?;
+
+    fdt.end_node(cpu_node)?;
+    fdt.end_node(cpus_node)?;
+
+    let plic_node = fdt.begin_node("plic@c000000")?;
+    fdt.property_string("compatible", "riscv,plic0")?;
+    fdt.property_u32("#interrupt-cells", 1)?;
+    fdt.property_null("interrupt-controller")?;
+    fdt.property_array_u64("reg", &[GUEST_PLIC_ADDR, 0x4000000])?;
+    fdt.property_u32("riscv,ndev", 3)?;
+    fdt.property_array_u32("interrupts-extended", &[1, 11, 1, 9])?;
+    fdt.property_phandle(2)?;
+    fdt.end_node(plic_node)?;
+
+    fdt.end_node(root_node)?;
+    fdt.finish()
+}
+```
+
+```
+$ ./run.sh
+...
+panic: panicked at src/trap.rs:188:14:
+trap handler: virtual instruction at 0xffffffff8022674e (stval=0xc0102573)
+```
+
+## Enable counters
+
+```
+$ llvm-addr2line -e linux/vmlinux 0xffffffff8022674e
+/kernel/./arch/riscv/include/asm/timex.h:53 (discriminator 1)
+```
+
+[](https://elixir.bootlin.com/linux/v6.12.34/source/arch/riscv/include/asm/timex.h#L53)
+
+```c
+static inline cycles_t get_cycles(void)
+{
+	return csr_read(CSR_TIME);
+}
+```
+
+```rs [src/trap.rs] {3}
+                "csrw hgatp, {hgatp}",
+                "csrw hedeleg, {hedeleg}",
+                "csrw hcounteren, {hcounteren}",
+                "csrw sepc, {sepc}",
+```
+
+```rs [src/trap.rs] {3}
+                hgatp = in(reg) self.hgatp,
+                hedeleg = in(reg) self.hedeleg,
+                hcounteren = in(reg) 0b11, /* cycle and time */
+                sepc = in(reg) self.sepc,
+```
+
+```
+$ ./run.sh
+...
+panic: panicked at src/trap.rs:127:13:
+unknown SBI call: eid=0x0, fid=0x0
+```
+
+## Implement `sbi_set_timer`
+
+```rs [src/trap.rs] {2-6}
+    let result: Result<i64, i64> = match (eid, fid) {
+        // Set Timer
+        (0x00, 0x0) => {
+            println!("[sbi] WARN: set_timer is not implemented, ignoring");
+            Ok(0)
+        }
+```
+
+```
+$ ./run.sh
+...
+panic: panicked at src/trap.rs:193:14:
+trap handler: load guest-page fault at 0xffffffff801d7d78 (stval=0xff20000000002080)
+```

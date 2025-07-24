@@ -104,6 +104,11 @@ fn handle_sbi_call(vcpu: &mut VCpu) {
     let eid = vcpu.a7;
     let fid = vcpu.a6;
     let result: Result<i64, i64> = match (eid, fid) {
+        // Set Timer
+        (0x00, 0x0) => {
+            println!("[sbi] WARN: set_timer is not implemented, ignoring");
+            Ok(0)
+        }
         // Get SBI specification version
         (0x10, 0x0) => Ok(0),
         // Probe SBI extension
