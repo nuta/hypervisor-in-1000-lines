@@ -37,6 +37,7 @@ export default defineConfig({
               { link: '/en/05-guest-mode', text: '05. Guest Mode' },
               { link: '/en/06-hello-from-guest', text: '06. Hello from Guest' },
               { link: '/en/07-build-linux-kernel', text: '07. Build Linux Kernel' },
+              { link: '/en/08-boot-linux', text: '08. Boot Linux' },
             ]
           },
           {

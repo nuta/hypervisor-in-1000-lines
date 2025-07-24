@@ -7,6 +7,7 @@ pub struct VCpu {
     pub host_sp: u64,
     pub hstatus: u64,
     pub hgatp: u64,
+    pub hedeleg: u64,
     pub sstatus: u64,
     pub sepc: u64,
     pub ra: u64,
@@ -48,6 +49,20 @@ impl VCpu {
         hstatus |= 2 << 32; // VSXL: XLEN for VS-mode (64-bit)
         hstatus |= 1 << 7; // SPV: Supervisor Previous Virtualization mode
 
+        let mut hedeleg: u64 = 0;
+        hedeleg |= 1 << 0; // Instruction address misaligned
+        hedeleg |= 1 << 1; // Instruction access fault
+        hedeleg |= 1 << 2; // Illegal instruction
+        hedeleg |= 1 << 3; // Breakpoint
+        hedeleg |= 1 << 4; // Load address misaligned
+        hedeleg |= 1 << 5; // Load access fault
+        hedeleg |= 1 << 6; // Store/AMO address misaligned
+        hedeleg |= 1 << 7; // Store/AMO access fault
+        hedeleg |= 1 << 8; // Environment call from U-mode
+        hedeleg |= 1 << 12; // Instruction page fault
+        hedeleg |= 1 << 13; // Load page fault
+        hedeleg |= 1 << 15; // Store/AMO page fault
+
         let sstatus: u64 = 1 << 8; // SPP: Supervisor Previous Privilege mode (VS-mode)
 
         let stack_size = 512 * 1024;
@@ -55,6 +70,7 @@ impl VCpu {
         Self {
             hstatus,
             hgatp: table.hgatp(),
+            hedeleg,
             sstatus,
             sepc: guest_entry,
             host_sp,
@@ -69,6 +85,7 @@ impl VCpu {
                 "csrw sstatus, {sstatus}",
                 "csrw sscratch, {sscratch}",
                 "csrw hgatp, {hgatp}",
+                "csrw hedeleg, {hedeleg}",
                 "csrw sepc, {sepc}",
 
                 // Restore general-purpose registers.
@@ -109,6 +126,7 @@ impl VCpu {
                 hstatus = in(reg) self.hstatus,
                 sstatus = in(reg) self.sstatus,
                 hgatp = in(reg) self.hgatp,
+                hedeleg = in(reg) self.hedeleg,
                 sepc = in(reg) self.sepc,
                 sscratch = in(reg) (self as *mut VCpu as usize),
                 ra_offset = const offset_of!(VCpu, ra),
