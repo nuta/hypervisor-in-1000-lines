@@ -20,6 +20,7 @@ struct RiscvImageHeader {
 
 pub const GUEST_DTB_ADDR: u64 = 0x7000_0000;
 pub const GUEST_BASE_ADDR: u64 = 0x8000_0000;
+pub const GUEST_PLIC_ADDR: u64 = 0x0c00_0000;
 const MEMORY_SIZE: usize = 64 * 1024 * 1024;
 
 fn copy_and_map(table: &mut GuestPageTable, data: &[u8], guest_addr: u64, len: usize, flags: u64) {
@@ -78,8 +79,26 @@ fn build_device_tree() -> Result<Vec<u8>, vm_fdt::Error> {
     fdt.property_string("mmu-type", "riscv,sv48")?;
     fdt.property_string("riscv,isa", "rv64imafdc")?;
 
+    let intc_node = fdt.begin_node("interrupt-controller")?;
+    fdt.property_u32("#interrupt-cells", 1)?;
+    fdt.property_null("interrupt-controller")?;
+    fdt.property_string("compatible", "riscv,cpu-intc")?;
+    fdt.property_phandle(1)?;
+    fdt.end_node(intc_node)?;
+
     fdt.end_node(cpu_node)?;
     fdt.end_node(cpus_node)?;
+
+    let plic_node = fdt.begin_node("plic@c000000")?;
+    fdt.property_string("compatible", "riscv,plic0")?;
+    fdt.property_u32("#interrupt-cells", 1)?;
+    fdt.property_null("interrupt-controller")?;
+    fdt.property_array_u64("reg", &[GUEST_PLIC_ADDR, 0x4000000])?;
+    fdt.property_u32("riscv,ndev", 3)?;
+    fdt.property_array_u32("interrupts-extended", &[1, 11, 1, 9])?;
+    fdt.property_phandle(2)?;
+    fdt.end_node(plic_node)?;
+
     fdt.end_node(root_node)?;
     fdt.finish()
 }
