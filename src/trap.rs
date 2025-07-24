@@ -100,6 +100,8 @@ fn handle_sbi_call(vcpu: &mut VCpu) {
     let eid = vcpu.a7;
     let fid = vcpu.a6;
     let result: Result<i64, i64> =match (eid, fid) {
+        // Get SBI specification version
+        (0x10, 0x0) => Ok(0),
         // Console Putchar.
         (0x1, 0x0) => {
             let ch = vcpu.a0 as u8;
