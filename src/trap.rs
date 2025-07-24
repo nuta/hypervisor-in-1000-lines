@@ -128,6 +128,8 @@ fn handle_sbi_call(vcpu: &mut VCpu) {
             }
             Ok(0)
         }
+        // Console Getchar.
+        (0x2, 0x0) => Err(-1), // Not supported
         _ => {
             panic!("unknown SBI call: eid={:#x}, fid={:#x}", eid, fid);
         }
