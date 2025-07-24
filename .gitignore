@@ -1,4 +1,7 @@
 /target
+/linux/Image
+/linux/vmlinux
+/.gdb_history
 *.map
 *.elf
 *.log
