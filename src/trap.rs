@@ -108,6 +108,8 @@ fn handle_sbi_call(vcpu: &mut VCpu) {
         (0x10, 0x0) => Ok(0),
         // Probe SBI extension
         (0x10, 0x3) => Err(-1),
+        // Get machine vendor/arch/implementation ID
+        (0x10, 0x4 | 0x5 | 0x6) => Ok(0),
         // Console Putchar.
         (0x1, 0x0) => {
             let ch = vcpu.a0 as u8;

@@ -38,6 +38,7 @@ export default defineConfig({
               { link: '/en/06-hello-from-guest', text: '06. Hello from Guest' },
               { link: '/en/07-build-linux-kernel', text: '07. Build Linux Kernel' },
               { link: '/en/08-boot-linux', text: '08. Boot Linux' },
+              { link: '/en/09-supervisor-binary-interface', text: '09. Supervisor Binary Interface' },
             ]
           },
           {
