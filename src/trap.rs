@@ -96,6 +96,33 @@ pub extern "C" fn trap_handler() -> ! {
     );
 }
 
+fn handle_sbi_call(vcpu: &mut VCpu) {
+    let eid = vcpu.a7;
+    let fid = vcpu.a6;
+    let result: Result<i64, i64> =match (eid, fid) {
+        // Console Putchar.
+        (0x1, 0x0) => {
+            let ch = vcpu.a0 as u8;
+            println!("[guest] {}", ch as char);
+            Ok(0)
+        }
+        _ => {
+            panic!("unknown SBI call: eid={:#x}, fid={:#x}", eid, fid);
+        }
+    };
+
+
+    match result {
+        Ok(value) => {
+            vcpu.a0 = 0;
+            vcpu.a1 = value as u64;
+        }
+        Err(err) => {
+            vcpu.a0 = err as u64;
+        }
+    }
+}
+
 pub fn handle_trap(vcpu: *mut VCpu) -> ! {
     let scause = read_csr!("scause");
     let sepc = read_csr!("sepc");
@@ -137,7 +164,7 @@ pub fn handle_trap(vcpu: *mut VCpu) -> ! {
 
     let vcpu = unsafe { &mut *vcpu };
     if scause == 10 {
-        println!("SBI call: eid={:#x}, fid={:#x}, a0={:#x} ('{}')", vcpu.a7, vcpu.a6, vcpu.a0, vcpu.a0 as u8 as char);
+        handle_sbi_call(vcpu);
         vcpu.sepc = sepc + 4;
     } else {
         panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
