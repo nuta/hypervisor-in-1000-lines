@@ -188,7 +188,7 @@ SECTIONS {
         __bss_end = .;
     }
 
-    . = ALIGN(4);
+    . = ALIGN(16);
     . += 1024 * 1024; /* 1MB */
     __stack_top = .;
 
