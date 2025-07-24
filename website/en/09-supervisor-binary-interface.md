@@ -14,7 +14,7 @@ Before implementing SBI calls, let's refactor the existing SBI handler, which on
 fn handle_sbi_call(vcpu: &mut VCpu) {
     let eid = vcpu.a7;
     let fid = vcpu.a6;
-    let result: Result<i64, i64> =match (eid, fid) {
+    let result: Result<i64, i64> = match (eid, fid) {
         // Console Putchar.
         (0x1, 0x0) => {
             let ch = vcpu.a0 as u8;
@@ -39,13 +39,14 @@ fn handle_sbi_call(vcpu: &mut VCpu) {
 }
 ```
 
-```rs [src/trap.rs] {3}
+```rs [src/trap.rs] {2-4,5}
     let vcpu = unsafe { &mut *vcpu };
-    if scause == 10 {
-        handle_sbi_call(vcpu);
-        vcpu.sepc = sepc + 4;
-    } else {
-        panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
+    match scause {
+        10 /* environment call from VS-mode */ => {
+            handle_sbi_call(vcpu);
+            vcpu.sepc = sepc + 4;
+        }
+        _ => panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval),
     }
 ```
 

@@ -180,11 +180,12 @@ pub fn handle_trap(vcpu: *mut VCpu) -> ! {
     };
 
     let vcpu = unsafe { &mut *vcpu };
-    if scause == 10 {
-        handle_sbi_call(vcpu);
-        vcpu.sepc = sepc + 4;
-    } else {
-        panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
+    match scause {
+        10 /* environment call from VS-mode */ => {
+            handle_sbi_call(vcpu);
+            vcpu.sepc = sepc + 4;
+        }
+        _ => panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval),
     }
 
     vcpu.run();
