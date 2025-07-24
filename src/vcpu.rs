@@ -1,6 +1,6 @@
 use core::{arch::asm, mem::offset_of};
 
-use crate::{allocator::alloc_pages, guest_page_table::GuestPageTable};
+use crate::{allocator::alloc_pages, guest_page_table::GuestPageTable, plic::PLIC, virtio::VirtioBlk};
 
 #[derive(Debug, Default)]
 pub struct VCpu {
@@ -41,6 +41,7 @@ pub struct VCpu {
     pub t4: u64,
     pub t5: u64,
     pub t6: u64,
+    pub virtio_blk: VirtioBlk,
 }
 
 impl VCpu {
@@ -74,11 +75,17 @@ impl VCpu {
             sstatus,
             sepc: guest_entry,
             host_sp,
+            virtio_blk: VirtioBlk::new(),
             ..Default::default()
         }
     }
 
     pub fn run(&mut self) -> ! {
+        let mut hvip = 0;
+        if PLIC.lock().has_pending_irqs() {
+            hvip |= 1 << 10; // VSEIP
+        }
+
         unsafe {
             asm!(
                 "csrw hstatus, {hstatus}",
@@ -87,6 +94,7 @@ impl VCpu {
                 "csrw hgatp, {hgatp}",
                 "csrw hedeleg, {hedeleg}",
                 "csrw hcounteren, {hcounteren}",
+                "csrw hvip, {hvip}",
                 "csrw sepc, {sepc}",
 
                 // Restore general-purpose registers.
@@ -129,6 +137,7 @@ impl VCpu {
                 hgatp = in(reg) self.hgatp,
                 hedeleg = in(reg) self.hedeleg,
                 hcounteren = in(reg) 0b11, /* cycle and time */
+                hvip = in(reg) hvip,
                 sepc = in(reg) self.sepc,
                 sscratch = in(reg) (self as *mut VCpu as usize),
                 ra_offset = const offset_of!(VCpu, ra),

@@ -21,6 +21,7 @@ struct RiscvImageHeader {
 pub const GUEST_DTB_ADDR: u64 = 0x7000_0000;
 pub const GUEST_BASE_ADDR: u64 = 0x8000_0000;
 pub const GUEST_PLIC_ADDR: u64 = 0x0c00_0000;
+pub const GUEST_VIRTIO_BLK_ADDR: u64 = 0x1000_0000;
 const MEMORY_SIZE: usize = 64 * 1024 * 1024;
 
 fn copy_and_map(table: &mut GuestPageTable, data: &[u8], guest_addr: u64, len: usize, flags: u64) {
@@ -36,7 +37,12 @@ fn copy_and_map(table: &mut GuestPageTable, data: &[u8], guest_addr: u64, len: u
 
 pub fn load_linux_kernel(table: &mut GuestPageTable, image: &[u8]) {
     assert!(image.len() >= size_of::<RiscvImageHeader>());
-    let header = unsafe { &*(image.as_ptr() as *const RiscvImageHeader) };
+    
+    // Safely read the header without requiring alignment
+    let mut header_bytes = [0u8; size_of::<RiscvImageHeader>()];
+    header_bytes.copy_from_slice(&image[..size_of::<RiscvImageHeader>()]);
+    let header = unsafe { &*(header_bytes.as_ptr() as *const RiscvImageHeader) };
+    
     assert_eq!(u32::from_le(header.magic2), 0x05435352, "invalid magic");
 
     let kernel_size = u64::from_le(header.image_size);
@@ -98,6 +104,13 @@ fn build_device_tree() -> Result<Vec<u8>, vm_fdt::Error> {
     fdt.property_array_u32("interrupts-extended", &[1, 11, 1, 9])?;
     fdt.property_phandle(2)?;
     fdt.end_node(plic_node)?;
+
+    let virtio_node = fdt.begin_node("virtio_mmio@10000000")?;
+    fdt.property_string("compatible", "virtio,mmio")?;
+    fdt.property_array_u64("reg", &[GUEST_VIRTIO_BLK_ADDR, 0x1000])?;
+    fdt.property_u32("interrupt-parent", 2)?;
+    fdt.property_array_u32("interrupts", &[1])?;
+    fdt.end_node(virtio_node)?;
 
     fdt.end_node(root_node)?;
     fdt.finish()

@@ -7,9 +7,11 @@ extern crate alloc;
 mod print;
 mod allocator;
 mod guest_page_table;
+mod plic;
 mod trap;
 mod vcpu;
 mod linux_loader;
+mod virtio;
 
 use core::arch::asm;
 use core::panic::PanicInfo;

@@ -2,7 +2,7 @@ use core::{arch::naked_asm, mem::offset_of};
 use alloc::vec::Vec;
 use spin::Mutex;
 
-use crate::vcpu::VCpu;
+use crate::{vcpu::VCpu, linux_loader::{GUEST_PLIC_ADDR, GUEST_VIRTIO_BLK_ADDR}, plic::PLIC};
 
 macro_rules! read_csr {
     ($csr:expr) => {{
@@ -184,12 +184,29 @@ fn handle_mmio_write(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
         _ => unreachable!(),
     };
 
-    println!("[MMIO]: write {:#x} (value={:#x}, width={})", guest_addr, value, width);
+    if GUEST_PLIC_ADDR <= guest_addr && guest_addr < GUEST_PLIC_ADDR + 0x400000 {
+        let offset = guest_addr - GUEST_PLIC_ADDR;
+        PLIC.lock().handle_write(offset, value, width);
+    } else if GUEST_VIRTIO_BLK_ADDR <= guest_addr && guest_addr < GUEST_VIRTIO_BLK_ADDR + 0x1000 {
+        let offset = guest_addr - GUEST_VIRTIO_BLK_ADDR;
+        vcpu.virtio_blk.handle_mmio_write(offset, value, width);
+    } else {
+        println!("[MMIO]: write {:#x} (value={:#x}, width={})", guest_addr, value, width);
+    }
 }
 
 fn handle_mmio_read(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
-    println!("[MMIO]: read {:#x} (width={})", guest_addr, width);
-    let value = 0;
+    let value = if GUEST_PLIC_ADDR <= guest_addr && guest_addr < GUEST_PLIC_ADDR + 0x400000 {
+        let offset = guest_addr - GUEST_PLIC_ADDR;
+        PLIC.lock().handle_read(offset, width)
+    } else if GUEST_VIRTIO_BLK_ADDR <= guest_addr && guest_addr < GUEST_VIRTIO_BLK_ADDR + 0x1000 {
+        let offset = guest_addr - GUEST_VIRTIO_BLK_ADDR;
+        vcpu.virtio_blk.handle_mmio_read(offset, width)
+    } else {
+        println!("[MMIO]: read {:#x} (width={})", guest_addr, width);
+        0
+    };
+
     match reg {
         0 => {}, // x0 is hardwired to 0, writes are ignored
         1 => vcpu.ra = value,
