@@ -9,14 +9,13 @@ mod allocator;
 mod guest_page_table;
 mod trap;
 mod vcpu;
+mod linux_loader;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
 
 use crate::{
-    allocator::alloc_pages,
-    guest_page_table::{GuestPageTable, PTE_R, PTE_W, PTE_X},
-    vcpu::VCpu,
+    guest_page_table::GuestPageTable, linux_loader::GUEST_BASE_ADDR, vcpu::VCpu
 };
 
 #[unsafe(no_mangle)]
@@ -52,19 +51,12 @@ fn main() -> ! {
 
     allocator::GLOBAL_ALLOCATOR.init(&raw mut __heap, &raw mut __heap_end);
 
-    let kernel_image = include_bytes!("../guest.bin");
-    let guest_entry = 0x100000;
-    let kernel_memory = alloc_pages(kernel_image.len());
-    unsafe {
-        let dst = kernel_memory as *mut u8;
-        let src = kernel_image.as_ptr();
-        core::ptr::copy_nonoverlapping(src, dst, kernel_image.len());
-    }
-
+    let kernel_image = include_bytes!("../linux/Image");
     let mut table = GuestPageTable::new();
-    table.map(guest_entry, kernel_memory as u64, PTE_R | PTE_W | PTE_X);
-
-    let mut vcpu = VCpu::new(&table, guest_entry);
+    linux_loader::load_linux_kernel(&mut table, kernel_image);
+    let mut vcpu = VCpu::new(&table, GUEST_BASE_ADDR);
+    vcpu.a0 = 0; // hart ID
+    vcpu.a1 = 0xdeadbeef_00000000; // device tree address
     vcpu.run();
 }
 
