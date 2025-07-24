@@ -1,6 +1,6 @@
 use core::{arch::asm, mem::offset_of};
 
-use crate::{allocator::alloc_pages, guest_page_table::GuestPageTable, plic::PLIC, virtio::VirtioBlk};
+use crate::{allocator::alloc_pages, guest_page_table::GuestPageTable, plic::PLIC};
 
 #[derive(Debug, Default)]
 pub struct VCpu {
@@ -41,7 +41,6 @@ pub struct VCpu {
     pub t4: u64,
     pub t5: u64,
     pub t6: u64,
-    pub virtio_blk: VirtioBlk,
 }
 
 impl VCpu {
@@ -75,7 +74,6 @@ impl VCpu {
             sstatus,
             sepc: guest_entry,
             host_sp,
-            virtio_blk: VirtioBlk::new(),
             ..Default::default()
         }
     }

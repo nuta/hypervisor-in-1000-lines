@@ -1,3 +1,5 @@
+use spin::Mutex;
+
 fn set_low_32(value: &mut u64, low: u32) {
     *value = (*value & 0xffffffff00000000) | (low as u64);
 }
@@ -14,7 +16,9 @@ fn get_high_32(value: u64) -> u32 {
     ((value >> 32) & 0xffffffff) as u32
 }
 
-#[derive(Debug, Default)]
+pub static VIRTIO_BLK: Mutex<VirtioBlk> = Mutex::new(VirtioBlk::new());
+
+#[derive(Debug)]
 pub struct VirtioBlk {
     pub device_features_sel: u32,
     pub driver_features_sel: u32,
@@ -30,8 +34,20 @@ pub struct VirtioBlk {
 }
 
 impl VirtioBlk {
-    pub fn new() -> Self {
-        Self { ..Default::default() }
+    pub const fn new() -> Self {
+        Self {
+            device_features_sel: 0,
+            driver_features_sel: 0,
+            driver_features: [0, 0],
+            queue_sel: 0,
+            device_status: 0,
+            queue_num: 0,
+            queue_desc: 0,
+            queue_avail: 0,
+            queue_used: 0,
+            queue_ready: 0,
+            irq_status: 0,
+        }
     }
 
     pub fn handle_mmio_write(

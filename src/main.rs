@@ -11,7 +11,7 @@ mod plic;
 mod trap;
 mod vcpu;
 mod linux_loader;
-mod virtio;
+mod virtio_blk;
 
 use core::arch::asm;
 use core::panic::PanicInfo;

@@ -2,7 +2,7 @@ use core::{arch::naked_asm, mem::offset_of};
 use alloc::vec::Vec;
 use spin::Mutex;
 
-use crate::{vcpu::VCpu, linux_loader::{GUEST_PLIC_ADDR, GUEST_VIRTIO_BLK_ADDR}, plic::PLIC};
+use crate::{vcpu::VCpu, linux_loader::{GUEST_PLIC_ADDR, GUEST_VIRTIO_BLK_ADDR}, plic::PLIC, virtio_blk::VIRTIO_BLK};
 
 macro_rules! read_csr {
     ($csr:expr) => {{
@@ -189,7 +189,7 @@ fn handle_mmio_write(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
         PLIC.lock().handle_write(offset, value, width);
     } else if GUEST_VIRTIO_BLK_ADDR <= guest_addr && guest_addr < GUEST_VIRTIO_BLK_ADDR + 0x1000 {
         let offset = guest_addr - GUEST_VIRTIO_BLK_ADDR;
-        vcpu.virtio_blk.handle_mmio_write(offset, value, width);
+        VIRTIO_BLK.lock().handle_mmio_write(offset, value, width);
     } else {
         println!("[MMIO]: write {:#x} (value={:#x}, width={})", guest_addr, value, width);
     }
@@ -201,7 +201,7 @@ fn handle_mmio_read(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
         PLIC.lock().handle_read(offset, width)
     } else if GUEST_VIRTIO_BLK_ADDR <= guest_addr && guest_addr < GUEST_VIRTIO_BLK_ADDR + 0x1000 {
         let offset = guest_addr - GUEST_VIRTIO_BLK_ADDR;
-        vcpu.virtio_blk.handle_mmio_read(offset, width)
+        VIRTIO_BLK.lock().handle_mmio_read(offset, width)
     } else {
         println!("[MMIO]: read {:#x} (width={})", guest_addr, width);
         0
