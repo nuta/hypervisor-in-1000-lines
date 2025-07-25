@@ -1,4 +1,6 @@
 use spin::Mutex;
+use crate::{guest_memory::{GUEST_MEMORY}, plic::PLIC};
+use core::cmp;
 
 fn set_low_32(value: &mut u64, low: u32) {
     *value = (*value & 0xffffffff00000000) | (low as u64);
@@ -15,6 +17,44 @@ fn get_low_32(value: u64) -> u32 {
 fn get_high_32(value: u64) -> u32 {
     ((value >> 32) & 0xffffffff) as u32
 }
+
+#[repr(C)]
+struct VirtqDesc {
+    addr: u64,
+    len: u32,
+    flags: u16,
+    next: u16,
+}
+
+#[repr(C)]
+struct VirtqAvail {
+    flags: u16,
+    idx: u16,
+    ring: [u16; 256],
+}
+
+#[repr(C)]
+struct VirtqUsed {
+    flags: u16,
+    idx: u16,
+    ring: [VirtqUsedElem; 256],
+}
+
+#[repr(C)]
+struct VirtqUsedElem {
+    id: u32,
+    len: u32,
+}
+
+#[repr(C)]
+struct VirtioBlkReq {
+    req_type: u32,
+    reserved: u32,
+    sector: u64,
+}
+
+const VIRTQ_DESC_F_NEXT: u16 = 1;
+const VIRTIO_BLK_T_IN: u32 = 0;
 
 pub static VIRTIO_BLK: Mutex<VirtioBlk> = Mutex::new(VirtioBlk::new());
 pub const DISK_IMAGE: &[u8] = include_bytes!("../linux/rootfs.squashfs");
@@ -119,7 +159,64 @@ impl VirtioBlk {
         }
     }
 
-    pub fn process_virtqueue(&mut self) {        
-        todo!("guest requested a virtio-blk operation");
+    pub fn process_virtqueue(&mut self) {
+        if self.queue_ready == 0 {
+            return;
+        }
+
+        let avail_ptr = GUEST_MEMORY.resolve_guest_addr(self.queue_avail) as *const VirtqAvail;
+        let desc_ptr = GUEST_MEMORY.resolve_guest_addr(self.queue_desc) as *const VirtqDesc;
+        let used_ptr = GUEST_MEMORY.resolve_guest_addr(self.queue_used) as *mut VirtqUsed;
+        
+        unsafe {
+            let avail = &*avail_ptr;
+            let used = &mut *used_ptr;
+            let mut last_used_idx = used.idx;
+            
+            for i in last_used_idx..avail.idx {
+                let desc_idx = avail.ring[i as usize % 256];
+                let desc = &*desc_ptr.add(desc_idx as usize);
+
+                let req_ptr = GUEST_MEMORY.resolve_guest_addr(desc.addr) as *const VirtioBlkReq;
+                let req = &*req_ptr;
+
+                assert_eq!(req.req_type, VIRTIO_BLK_T_IN, "only read requests are supported");
+                
+                if (desc.flags & VIRTQ_DESC_F_NEXT) != 0 {
+                    let data_desc = &*desc_ptr.add(desc.next as usize);
+                    let data_ptr = GUEST_MEMORY.resolve_guest_addr(data_desc.addr) as *mut u8;
+                    let data_len = data_desc.len as usize;
+
+                    let offset = (req.sector * 512) as usize;
+                    let copy_len = cmp::min(data_len, DISK_IMAGE.len().saturating_sub(offset));
+
+                    println!("[virtio-blk] READ sector={} offset={:#x} len={} bytes", 
+                             req.sector, offset, copy_len);
+
+                    if offset < DISK_IMAGE.len() {
+                        core::ptr::copy_nonoverlapping(
+                            DISK_IMAGE.as_ptr().add(offset),
+                            data_ptr,
+                            copy_len
+                        );
+                    }
+
+                    if (data_desc.flags & VIRTQ_DESC_F_NEXT) != 0 {
+                        let status_desc = &*desc_ptr.add(data_desc.next as usize);
+                        let status_ptr = GUEST_MEMORY.resolve_guest_addr(status_desc.addr) as *mut u32;
+                        *status_ptr = 0; // VIRTIO_BLK_S_OK
+                    }
+
+                    used.ring[last_used_idx as usize % 256] = VirtqUsedElem {
+                        id: desc_idx as u32,
+                        len: copy_len as u32,
+                    };
+                    last_used_idx += 1;
+                    used.idx = last_used_idx;
+                    self.irq_status |= 1 << 0;
+                    PLIC.lock().add_pending_irq(1);
+                }
+            }
+        }
     }
 }

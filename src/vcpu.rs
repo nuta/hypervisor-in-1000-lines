@@ -63,7 +63,9 @@ impl VCpu {
         hedeleg |= 1 << 13; // Load page fault
         hedeleg |= 1 << 15; // Store/AMO page fault
 
-        let sstatus: u64 = 1 << 8; // SPP: Supervisor Previous Privilege mode (VS-mode)
+        let mut sstatus: u64 = 0;
+        sstatus |= 1 << 8;  // SPP: Supervisor Previous Privilege mode (VS-mode)  
+        sstatus |= 3 << 13; // FS: Floating-point State (enabled)
 
         let stack_size = 512 * 1024;
         let host_sp = alloc_pages(stack_size) as u64 + stack_size as u64;
@@ -84,6 +86,10 @@ impl VCpu {
             hvip |= 1 << 10; // VSEIP
         }
 
+        let mut hideleg = 0;
+        hideleg |= 1 << 10; // Supervisor external interrupt
+        hideleg |= 1 << 6; // Supervisor timer interrupt
+
         unsafe {
             asm!(
                 "csrw hstatus, {hstatus}",
@@ -91,6 +97,7 @@ impl VCpu {
                 "csrw sscratch, {sscratch}",
                 "csrw hgatp, {hgatp}",
                 "csrw hedeleg, {hedeleg}",
+                "csrw hideleg, {hideleg}",
                 "csrw hcounteren, {hcounteren}",
                 "csrw hvip, {hvip}",
                 "csrw sepc, {sepc}",
@@ -134,6 +141,7 @@ impl VCpu {
                 sstatus = in(reg) self.sstatus,
                 hgatp = in(reg) self.hgatp,
                 hedeleg = in(reg) self.hedeleg,
+                hideleg = in(reg) hideleg,
                 hcounteren = in(reg) 0b11, /* cycle and time */
                 hvip = in(reg) hvip,
                 sepc = in(reg) self.sepc,
