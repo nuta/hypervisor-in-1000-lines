@@ -77,7 +77,7 @@ $ ./run.sh
 
 Great! Now the guest now tries to use the virtio-mmio device, but it fails because the magic value is incorrect.
 
-## Virtio-blk
+## Scaffold virtio-blk device emulation
 
 ```rs [src/main.rs]
 mod virtio_blk;
@@ -169,3 +169,60 @@ unknown virtio-blk mmio write: offs=0x70
 ```
 
 Great, Linux's device driver does not complain about the magic value, and wants to continue the initialization.
+
+## Virtio initialization
+
+> **3.1.1 Driver Requirements: Device Initialization**
+>
+> The driver MUST follow this sequence to initialize a device:
+>
+> 1. Reset the device.
+> 2. Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
+> 3. Set the DRIVER status bit: the guest OS knows how to drive the device.
+> 4. Read device feature bits, and write the subset of feature bits understood by the OS and driver to the device. During this step the driver MAY read (but MUST NOT write) the device-specific configuration fields to check that it can support the device before accepting it.
+> 5. Set the FEATURES_OK status bit. The driver MUST NOT accept new feature bits after this step.
+> 6. Re-read device status to ensure the FEATURES_OK bit is still set: otherwise, the device does not support our subset of features and the device is unusable.
+> 7. Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
+> 8. Set the DRIVER_OK status bit. At this point the device is “live”.
+>
+> [Virtual I/O Device (VIRTIO) Version 1.3](https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.html)
+
+Let's start with `Status` register. According to the spec:
+
+> **Device status**
+>
+> Reading from this register returns the current device status flags. Writing non-zero values to this register sets the status flags, indicating the driver progress. Writing zero (0x0) to this register triggers a device reset. See also p. 4.2.3.1 Device Initialization.
+
+```rs [src/virtio_blk.rs] {2,8,15,27}
+pub struct VirtioBlk {
+    device_status: u32,
+}
+
+impl VirtioBlk  {
+    pub const fn new() -> Self {
+        Self {
+            device_status: 0,
+        }
+    }
+
+    pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
+        assert_eq!(width, 4);
+        match offset {
+            0x70 => self.device_status = value as u32, // Device status
+            _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
+        }
+    }
+
+    pub fn handle_mmio_read(&self, offset: u64, _width: u64) -> u64 {
+        println!("[MMIO]: read from virtio-blk at {:#x}", offset);
+        match offset {
+            0x00 => 0x74726976,  // Magic value "virt"
+            0x04 => 0x2,         // Version
+            0x08 => 0x2,         // Device ID (block device)
+            0x0c => 0x554d4551,  // Vendor ID "QEMU"
+            0x70 => self.device_status as u64,  // Device status
+            _ => panic!("unknown virtio-blk mmio read: guest_addr={:#x}", offset),
+        }
+    }
+}
+```
