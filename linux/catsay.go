@@ -15,11 +15,7 @@ func main() {
 	fmt.Println("\033[32m   Hello World!\033[0m")
 	fmt.Println()
 
-	// Print messages every second
-	counter := 1
 	for {
 		time.Sleep(1 * time.Second)
-		fmt.Printf("\033[35mMessage #%d: The cat is still here!\033[0m\n", counter)
-		counter++
 	}
 }
