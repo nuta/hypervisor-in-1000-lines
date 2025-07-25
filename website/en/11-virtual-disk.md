@@ -77,4 +77,95 @@ $ ./run.sh
 
 Great! Now the guest now tries to use the virtio-mmio device, but it fails because the magic value is incorrect.
 
-## Virtio-mmio
+## Virtio-blk
+
+```rs [src/main.rs]
+mod virtio_blk;
+```
+
+```rs [src/virtio_blk.rs]
+use spin::Mutex;
+
+pub static VIRTIO_BLK: Mutex<VirtioBlk> = Mutex::new(VirtioBlk::new());
+
+pub struct VirtioBlk {
+}
+
+impl VirtioBlk  {
+    pub const fn new() -> Self {
+        Self {}
+    }
+
+    pub fn handle_mmio_write(&mut self, offset: u64, _value: u64, width: u64) {
+        assert_eq!(width, 4);
+        match offset {
+            _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
+        }
+    }
+
+    pub fn handle_mmio_read(&self, offset: u64, _width: u64) -> u64 {
+        println!("[MMIO]: read from virtio-blk at {:#x}", offset);
+        match offset {
+            0x00 => 0x74726976,  // Magic value "virt"
+            0x04 => 0x2,         // Version
+            0x08 => 0x2,         // Device ID (block device)
+            0x0c => 0x554d4551,  // Vendor ID "QEMU"
+            _ => panic!("unknown virtio-blk mmio read: guest_addr={:#x}", offset),
+        }
+    }
+}
+```
+
+```rs [src/trap.rs] {6-17}
+fn handle_mmio_write(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
+    let value = match reg {
+        /* ... */
+    };
+
+    match guest_addr {
+        PLIC_ADDR..PLIC_END => {
+            println!("[MMIO]: ignore write to PLIC at {:#x}", guest_addr);
+        }
+        VIRTIO_BLK_ADDR..VIRTIO_BLK_END => {
+            let offset = guest_addr - VIRTIO_BLK_ADDR;
+            VIRTIO_BLK.lock().handle_mmio_write(offset, value, width);
+        }
+        _ => {
+            panic!("[MMIO]: invalid write at {:#x} (value={:#x}, width={})", guest_addr, value, width);
+        }
+    }
+}
+```
+
+```rs [src/trap.rs] {2-14}
+fn handle_mmio_read(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
+    let value = match guest_addr {
+        PLIC_ADDR..PLIC_END => {
+            println!("[MMIO]: ignore read from PLIC at {:#x}", guest_addr);
+            0
+        }
+        VIRTIO_BLK_ADDR..VIRTIO_BLK_END => {
+            let offset = guest_addr - VIRTIO_BLK_ADDR;
+            VIRTIO_BLK.lock().handle_mmio_read(offset, width)
+        }
+        _ => {
+            panic!("[MMIO]: invalid read at {:#x} (width={})", guest_addr, width);
+        }
+    };
+
+    /* ... */
+}
+```
+
+```
+$ ./run.sh
+...
+[MMIO]: read from virtio-blk at 0x0
+[MMIO]: read from virtio-blk at 0x4
+[MMIO]: read from virtio-blk at 0x8
+[MMIO]: read from virtio-blk at 0xc
+panic: panicked at src/virtio_blk.rs:16:18:
+unknown virtio-blk mmio write: offs=0x70
+```
+
+Great, Linux's device driver does not complain about the magic value, and wants to continue the initialization.
