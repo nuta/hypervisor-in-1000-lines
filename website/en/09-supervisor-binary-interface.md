@@ -210,6 +210,11 @@ $ ./run.sh
 
 Linux complains that it did not find any interrupt controller. Let's define a PLIC device in the device tree so that the kernel can recognize it. This is off-topic and not related to SBI, but it's a trivial thing to do:
 
+```rs [src/linux_loader.rs]
+pub const PLIC_ADDR: u64 = 0x0c00_0000;
+pub const PLIC_END: u64 = PLIC_ADDR + 0x400000;
+```
+
 ```rs [src/linux_loader.rs] {4-9,14-22}
     fdt.property_string("mmu-type", "riscv,sv48")?;
     fdt.property_string("riscv,isa", "rv64imafdc")?;
@@ -228,7 +233,7 @@ Linux complains that it did not find any interrupt controller. Let's define a PL
     fdt.property_string("compatible", "riscv,plic0")?;
     fdt.property_u32("#interrupt-cells", 1)?;
     fdt.property_null("interrupt-controller")?;
-    fdt.property_array_u64("reg", &[GUEST_PLIC_ADDR, 0x4000000])?;
+    fdt.property_array_u64("reg", &[PLIC_ADDR 0x4000000])?;
     fdt.property_u32("riscv,ndev", 3)?;
     fdt.property_array_u32("interrupts-extended", &[1, 11, 1, 9])?;
     fdt.property_phandle(2)?;

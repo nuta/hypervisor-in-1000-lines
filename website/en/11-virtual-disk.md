@@ -47,11 +47,9 @@ mksquashfs rootfs/ rootfs.squashfs -comp xz -b 1M -no-xattrs -noappend
     fdt.end_node(chosen_node)?;
 ```
 
-```rust [src/linux_loader.rs] {4}
-pub const GUEST_DTB_ADDR: u64 = 0x7000_0000;
-pub const GUEST_BASE_ADDR: u64 = 0x8000_0000;
-pub const GUEST_PLIC_ADDR: u64 = 0x0c00_0000;
-pub const GUEST_VIRTIO_BLK_ADDR: u64 = 0x0a00_0000;
+```rust [src/linux_loader.rs]
+pub const VIRTIO_BLK_ADDR: u64 = 0x0a00_0000;
+pub const VIRTIO_BLK_END: u64 = VIRTIO_BLK_ADDR + 0x1000;
 ```
 
 ```rust [src/linux_loader.rs] {4-9}
@@ -60,7 +58,7 @@ pub const GUEST_VIRTIO_BLK_ADDR: u64 = 0x0a00_0000;
 
     let virtio_node = fdt.begin_node("virtio_mmio@a000000")?;
     fdt.property_string("compatible", "virtio,mmio")?;
-    fdt.property_array_u64("reg", &[GUEST_VIRTIO_BLK_ADDR, 0x1000])?;
+    fdt.property_array_u64("reg", &[VIRTIO_BLK_ADDR, 0x1000])?;
     fdt.property_u32("interrupt-parent", 2)?;
     fdt.property_array_u32("interrupts", &[1])?;
     fdt.end_node(virtio_node)?;
