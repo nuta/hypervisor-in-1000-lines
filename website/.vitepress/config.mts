@@ -40,6 +40,7 @@ export default defineConfig({
               { link: '/en/08-boot-linux', text: '08. Boot Linux' },
               { link: '/en/09-supervisor-binary-interface', text: '09. Supervisor Binary Interface' },
               { link: '/en/10-memory-mapped-io', text: '10. Memory-Mapped I/O' },
+              { link: '/en/11-virtual-disk', text: '11. Virtual Disk' },
             ]
           },
           {
