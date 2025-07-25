@@ -1,8 +1,10 @@
 /target
 /linux/Image
 /linux/vmlinux
+/linux/rootfs
 /.gdb_history
 *.map
 *.elf
 *.log
 *.bin
+*.squashfs

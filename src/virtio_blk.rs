@@ -17,6 +17,7 @@ fn get_high_32(value: u64) -> u32 {
 }
 
 pub static VIRTIO_BLK: Mutex<VirtioBlk> = Mutex::new(VirtioBlk::new());
+pub const DISK_IMAGE: &[u8] = include_bytes!("../linux/rootfs.squashfs");
 
 #[derive(Debug)]
 pub struct VirtioBlk {
