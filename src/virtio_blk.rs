@@ -57,7 +57,7 @@ const VIRTQ_DESC_F_NEXT: u16 = 1;
 const VIRTIO_BLK_T_IN: u32 = 0;
 
 pub static VIRTIO_BLK: Mutex<VirtioBlk> = Mutex::new(VirtioBlk::new());
-pub const DISK_IMAGE: &[u8] = include_bytes!("../linux/rootfs.squashfs");
+const DISK_IMAGE: &[u8] = include_bytes!("../linux/rootfs.squashfs");
 
 #[derive(Debug)]
 pub struct VirtioBlk {
