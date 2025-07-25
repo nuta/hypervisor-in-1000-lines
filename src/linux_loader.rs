@@ -21,6 +21,7 @@ struct RiscvImageHeader {
 pub const GUEST_DTB_ADDR: u64 = 0x7000_0000;
 pub const GUEST_BASE_ADDR: u64 = 0x8000_0000;
 pub const GUEST_PLIC_ADDR: u64 = 0x0c00_0000;
+pub const GUEST_VIRTIO_BLK_ADDR: u64 = 0x0a00_0000;
 const MEMORY_SIZE: usize = 64 * 1024 * 1024;
 
 fn copy_and_map(table: &mut GuestPageTable, data: &[u8], guest_addr: u64, len: usize, flags: u64) {
@@ -58,7 +59,7 @@ fn build_device_tree() -> Result<Vec<u8>, vm_fdt::Error> {
     fdt.property_u32("#size-cells", 0x2)?;
 
     let chosen_node = fdt.begin_node("chosen")?;
-    fdt.property_string("bootargs", "console=hvc earlycon=sbi panic=-1")?;
+    fdt.property_string("bootargs", "console=hvc earlycon=sbi panic=-1 root=/dev/vda init=/bin/catsay")?;
     fdt.end_node(chosen_node)?;
 
     let memory_node = fdt.begin_node(&format!("memory@{}", GUEST_BASE_ADDR))?;
@@ -98,6 +99,13 @@ fn build_device_tree() -> Result<Vec<u8>, vm_fdt::Error> {
     fdt.property_array_u32("interrupts-extended", &[1, 11, 1, 9])?;
     fdt.property_phandle(2)?;
     fdt.end_node(plic_node)?;
+
+    let virtio_node = fdt.begin_node("virtio_mmio@a000000")?;
+    fdt.property_string("compatible", "virtio,mmio")?;
+    fdt.property_array_u64("reg", &[GUEST_VIRTIO_BLK_ADDR, 0x1000])?;
+    fdt.property_u32("interrupt-parent", 2)?;
+    fdt.property_array_u32("interrupts", &[1])?;
+    fdt.end_node(virtio_node)?;
 
     fdt.end_node(root_node)?;
     fdt.finish()
