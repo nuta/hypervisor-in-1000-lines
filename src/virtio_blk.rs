@@ -5,6 +5,7 @@ pub static VIRTIO_BLK: Mutex<VirtioBlk> = Mutex::new(VirtioBlk::new());
 pub struct VirtioBlk {
     status: u32,
     device_features_sel: u32,
+    driver_features_sel: u32,
 }
 
 impl VirtioBlk  {
@@ -12,6 +13,7 @@ impl VirtioBlk  {
         Self {
             status: 0,
             device_features_sel: 0,
+            driver_features_sel: 0,
         }
     }
 
@@ -21,6 +23,8 @@ impl VirtioBlk  {
         match offset {
             0x70 => self.status = value as u32, // Device status
             0x14 => self.device_features_sel = value as u32, // Device features selection
+            0x20 => {},                                      // Driver features
+            0x24 => self.driver_features_sel = value as u32, // Driver features selection
             _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
         }
     }

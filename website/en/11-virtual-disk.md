@@ -237,7 +237,7 @@ impl VirtioBlk  {
 
 > **DeviceFeatures (0x010): Flags representing features the device supports**
 >
-> Reading from this register returns 32 consecutive flag bits, the least significant bit depending on the last value written to `DeviceFeaturesSel`. Access to this register returns bits `DeviceFeaturesSel * 32` to (`DeviceFeaturesSel * 32) + 31`, eg. feature bits 0 to 31 if `DeviceFeaturesSel` is set to 0 and features bits 32 to 63 if DeviceFeaturesSel is set to 1.
+> Reading from this register returns 32 consecutive flag bits, the least significant bit depending on the last value written to `DeviceFeaturesSel`. Access to this register returns bits `DeviceFeaturesSel * 32` to `(DeviceFeaturesSel * 32) + 31`, eg. feature bits 0 to 31 if `DeviceFeaturesSel` is set to 0 and features bits 32 to 63 if DeviceFeaturesSel is set to 1.
 
 > **DeviceFeaturesSel (0x020): Device (host) features word selection**
 >
@@ -247,7 +247,7 @@ impl VirtioBlk  {
 ```rs [src/virtio_blk.rs] {3}
 pub struct VirtioBlk {
     status: u32,
-    features_select: u32,
+    device_features_sel: u32,
 }
 ```
 
@@ -257,7 +257,7 @@ pub struct VirtioBlk {
         assert_eq!(width, 4);
         match offset {
             0x70 => self.status = value as u32, // Device status
-            0x14 => self.features_select = value as u32, // Device features selection
+            0x14 => self.device_features_sel = value as u32, // Device features selection
             _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
         }
     }
@@ -273,9 +273,9 @@ pub struct VirtioBlk {
             0x08 => 0x2,         // Device ID (block device)
             0x0c => 0x554d4551,  // Vendor ID "QEMU"
             // Device features: 31-0 bits
-            0x10 if self.features_select == 0 => 0,
+            0x10 if self.device_features_sel == 0 => 0,
             // Device features: 63-32 bits
-            0x10 if self.features_select == 1 => 0,
+            0x10 if self.device_features_sel == 1 => 0,
 ```
 
 ```
@@ -289,9 +289,9 @@ Oh, the guest complains that the version is not supported. Let's add the feature
 
 ```rs [src/virtio_blk.rs] {4}
             // Device features: 31-0 bits
-            0x10 if self.features_select == 0 => 0,
+            0x10 if self.device_features_sel == 0 => 0,
             // Device features: 63-32 bits (VIRTIO_F_VERSION_1)
-            0x10 if self.features_select == 0x0000_0001,
+            0x10 if self.device_features_sel == 0x0000_0001,
 ```
 
 ```
@@ -301,5 +301,53 @@ panic: panicked at src/virtio_blk.rs:23:18:
 unknown virtio-blk mmio write: offs=0x24
 ```
 
-##
+## Emulate driver features register
 
+> **DriverFeatures (0x020): Flags representing features the driver supports**
+>
+> Reading from this register returns 32 consecutive flag bits, the least significant bit depending on the last value written to `DriverFeaturesSel`. Access to this register returns bits `DriverFeaturesSel * 32` to `(DriverFeaturesSel * 32) + 31`, eg. feature bits 0 to 31 if `DriverFeaturesSel` is set to 0 and features bits 32 to 63 if DriverFeaturesSel is set to 1.
+
+> **DriverFeaturesSel (0x024): Activated (guest) features word selection**
+>
+> Writing to this register selects a set of 32 activated feature bits accessible by writing to DriverFeatures.
+
+
+```rs [src/virtio_blk.rs] {4,12}
+pub struct VirtioBlk {
+    status: u32,
+    device_features_sel: u32,
+    driver_features_sel: u32,
+}
+
+impl VirtioBlk  {
+    pub const fn new() -> Self {
+        Self {
+            status: 0,
+            device_features_sel: 0,
+            driver_features_sel: 0,
+        }
+    }
+```
+
+```rs [src/virtio_blk.rs] {7-10}
+    pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
+        println!("[virtio-blk] MMIO write at {:#x}", offset);
+        assert_eq!(width, 4);
+        match offset {
+            0x70 => self.status = value as u32, // Device status
+            0x14 => self.device_features_sel = value as u32, // Device features selection
+            // Driver features
+            0x20 => {}, // ignore writes
+            // Driver features selection
+            0x24 => self.driver_features_sel = value as u32,
+            _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
+        }
+    }
+```
+
+```
+$ ./run.sh
+...
+panic: panicked at src/virtio_blk.rs:28:18:
+unknown virtio-blk mmio write: offs=0x30
+```
