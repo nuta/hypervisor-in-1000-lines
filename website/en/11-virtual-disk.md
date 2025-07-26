@@ -97,6 +97,7 @@ impl VirtioBlk  {
     }
 
     pub fn handle_mmio_write(&mut self, offset: u64, _value: u64, width: u64) {
+        println!("[virtio-blk] MMIO write at {:#x}", offset);
         assert_eq!(width, 4);
         match offset {
             _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
@@ -104,7 +105,8 @@ impl VirtioBlk  {
     }
 
     pub fn handle_mmio_read(&self, offset: u64, _width: u64) -> u64 {
-        println!("[MMIO]: read from virtio-blk at {:#x}", offset);
+        println!("[virtio-blk] MMIO read at {:#x}", offset);
+        assert_eq!(width, 4);
         match offset {
             0x00 => 0x74726976,  // Magic value "virt"
             0x04 => 0x2,         // Version
@@ -160,10 +162,10 @@ fn handle_mmio_read(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
 ```
 $ ./run.sh
 ...
-[MMIO]: read from virtio-blk at 0x0
-[MMIO]: read from virtio-blk at 0x4
-[MMIO]: read from virtio-blk at 0x8
-[MMIO]: read from virtio-blk at 0xc
+[virtio-blk] MMIO read at 0x0
+[virtio-blk] MMIO read at 0x4
+[virtio-blk] MMIO read at 0x8
+[virtio-blk] MMIO read at 0xc
 panic: panicked at src/virtio_blk.rs:16:18:
 unknown virtio-blk mmio write: offs=0x70
 ```
@@ -195,7 +197,7 @@ Let's start with `Status` register. According to the spec:
 >
 > Reading from this register returns the current device status flags. Writing non-zero values to this register sets the status flags, indicating the driver progress. Writing zero (0x0) to this register triggers a device reset. See also p. 4.2.3.1 Device Initialization.
 
-```rs [src/virtio_blk.rs] {2,8,15,27}
+```rs [src/virtio_blk.rs] {2,8,16,29}
 pub struct VirtioBlk {
     status: u32,
 }
@@ -208,6 +210,7 @@ impl VirtioBlk  {
     }
 
     pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
+        println!("[virtio-blk] MMIO write at {:#x}", offset);
         assert_eq!(width, 4);
         match offset {
             0x70 => self.status = value as u32, // Device status
@@ -216,7 +219,8 @@ impl VirtioBlk  {
     }
 
     pub fn handle_mmio_read(&self, offset: u64, _width: u64) -> u64 {
-        println!("[MMIO]: read from virtio-blk at {:#x}", offset);
+        println!("[virtio-blk] MMIO read at {:#x}", offset);
+        assert_eq!(width, 4);
         match offset {
             0x00 => 0x74726976,  // Magic value "virt"
             0x04 => 0x2,         // Version
@@ -247,8 +251,9 @@ pub struct VirtioBlk {
 }
 ```
 
-```rs [src/virtio_blk.rs] {5}
+```rs [src/virtio_blk.rs] {6}
     pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
+        println!("[virtio-blk] MMIO write at {:#x}", offset);
         assert_eq!(width, 4);
         match offset {
             0x70 => self.status = value as u32, // Device status
@@ -258,9 +263,10 @@ pub struct VirtioBlk {
     }
 ```
 
-```rs [src/virtio_blk.rs] {8-11}
-    pub fn handle_mmio_read(&self, offset: u64, _width: u64) -> u64 {
-        println!("[MMIO]: read from virtio-blk at {:#x}", offset);
+```rs [src/virtio_blk.rs] {9-12}
+    pub fn handle_mmio_read(&self, offset: u64, width: u64) -> u64 {
+        println!("[virtio-blk] MMIO read at {:#x}", offset);
+        assert_eq!(width, 4);
         match offset {
             0x00 => 0x74726976,  // Magic value "virt"
             0x04 => 0x2,         // Version

@@ -16,6 +16,7 @@ impl VirtioBlk  {
     }
 
     pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
+        println!("[virtio-blk] MMIO write at {:#x}", offset);
         assert_eq!(width, 4);
         match offset {
             0x70 => self.status = value as u32, // Device status
@@ -24,8 +25,9 @@ impl VirtioBlk  {
         }
     }
 
-    pub fn handle_mmio_read(&self, offset: u64, _width: u64) -> u64 {
-        println!("[MMIO]: read from virtio-blk at {:#x}", offset);
+    pub fn handle_mmio_read(&self, offset: u64, width: u64) -> u64 {
+        println!("[virtio-blk] MMIO read at {:#x}", offset);
+        assert_eq!(width, 4);
         match offset {
             0x00 => 0x74726976,  // Magic value "virt"
             0x04 => 0x2,         // Version
