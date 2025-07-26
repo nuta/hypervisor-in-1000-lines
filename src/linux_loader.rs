@@ -61,7 +61,7 @@ fn build_device_tree() -> Result<Vec<u8>, vm_fdt::Error> {
     fdt.property_u32("#size-cells", 0x2)?;
 
     let chosen_node = fdt.begin_node("chosen")?;
-    fdt.property_string("bootargs", "console=hvc earlycon=sbi panic=-1 root=/dev/vda init=/bin/catsay")?;
+    fdt.property_string("bootargs", "console=hvc earlycon=sbi panic=-1 root=/dev/vda")?;
     fdt.end_node(chosen_node)?;
 
     let memory_node = fdt.begin_node(&format!("memory@{}", GUEST_BASE_ADDR))?;
