@@ -6,6 +6,8 @@ pub struct VirtioBlk {
     status: u32,
     device_features_sel: u32,
     driver_features_sel: u32,
+    requestq_ready: u32,
+    requestq_size: u32,
 }
 
 impl VirtioBlk  {
@@ -14,6 +16,8 @@ impl VirtioBlk  {
             status: 0,
             device_features_sel: 0,
             driver_features_sel: 0,
+            requestq_ready: 0,
+            requestq_size: 0,
         }
     }
 
@@ -25,6 +29,8 @@ impl VirtioBlk  {
             0x14 => self.device_features_sel = value as u32, // Device features selection
             0x20 => {},                                      // Driver features
             0x24 => self.driver_features_sel = value as u32, // Driver features selection
+            0x30 => assert_eq!(value, 0), // Queue select (must be requestq)
+            0x38 => self.requestq_size = value as u32, // Queue size (# of descriptors)
             _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
         }
     }
@@ -39,6 +45,8 @@ impl VirtioBlk  {
             0x0c => 0x554d4551,  // Vendor ID "QEMU"
             0x10 if self.device_features_sel == 0 => 0, // Device features: 31-0 bits
             0x10 if self.device_features_sel == 1 => 0x0000_0001, // Device features: 63-32 bits (VIRTIO_F_VERSION_1)
+            0x34 => 128, // Max queue size (# of descriptors)
+            0x44 => self.requestq_ready as u64, // Queue ready
             0x70 => self.status as u64,  // Device status
             _ => panic!("unknown virtio-blk mmio read: guest_addr={:#x}", offset),
         }

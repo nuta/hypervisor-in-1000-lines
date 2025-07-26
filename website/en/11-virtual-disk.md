@@ -351,3 +351,55 @@ $ ./run.sh
 panic: panicked at src/virtio_blk.rs:28:18:
 unknown virtio-blk mmio write: offs=0x30
 ```
+
+## Queue size negotiation
+
+```rs [src/virtio_blk.rs] {5-6,15-16}
+pub struct VirtioBlk {
+    status: u32,
+    device_features_sel: u32,
+    driver_features_sel: u32,
+    requestq_ready: u32,
+    requestq_size: u32,
+}
+
+impl VirtioBlk  {
+    pub const fn new() -> Self {
+        Self {
+            status: 0,
+            device_features_sel: 0,
+            driver_features_sel: 0,
+            requestq_ready: 0,
+            requestq_size: 0,
+        }
+    }
+```
+
+```rs [src/virtio_blk.rs] {6-7}
+    pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
+        println!("[virtio-blk] MMIO write at {:#x}", offset);
+        assert_eq!(width, 4);
+        match offset {
+            /* ... */
+            0x30 => assert_eq!(value, 0), // Queue select (must be requestq)
+            0x38 => self.requestq_size = value as u32, // Queue size (# of descriptors)
+            _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
+```
+
+```rs [src/virtio_blk.rs] {6-7}
+    pub fn handle_mmio_read(&self, offset: u64, width: u64) -> u64 {
+        println!("[virtio-blk] MMIO read at {:#x}", offset);
+        assert_eq!(width, 4);
+        match offset {
+            /* ... */
+            0x34 => 128, // Max queue size (# of descriptors)
+            0x44 => self.requestq_ready as u64, // Queue ready
+            0x70 => self.status as u64,  // Device status
+```
+
+```
+$ ./run.sh
+...
+panic: panicked at src/virtio_blk.rs:34:18:
+unknown virtio-blk mmio write: offs=0x80
+```
