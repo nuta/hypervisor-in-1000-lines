@@ -375,7 +375,7 @@ impl VirtioBlk  {
     }
 ```
 
-```rs [src/virtio_blk.rs] {6-7}
+```rs [src/virtio_blk.rs] {6-8}
     pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
         println!("[virtio-blk] MMIO write at {:#x}", offset);
         assert_eq!(width, 4);
@@ -383,6 +383,7 @@ impl VirtioBlk  {
             /* ... */
             0x30 => assert_eq!(value, 0), // Queue select (must be requestq)
             0x38 => self.requestq_size = value as u32, // Queue size (# of descriptors)
+            0x44 => {}, // Queue ready (ignored)
             _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
 ```
 
@@ -402,4 +403,85 @@ $ ./run.sh
 ...
 panic: panicked at src/virtio_blk.rs:34:18:
 unknown virtio-blk mmio write: offs=0x80
+```
+
+## Queue address registers
+
+```rs [src/virtio_blk.rs] {3-5,12-14}
+pub struct VirtioBlk {
+    /* ... */
+    requestq_desc_addr: u64,
+    requestq_driver_addr: u64,
+    requestq_device_addr: u64,
+}
+
+impl VirtioBlk  {
+    pub const fn new() -> Self {
+        Self {
+            /* ... */
+            requestq_desc_addr: 0,
+            requestq_driver_addr: 0,
+            requestq_device_addr: 0,
+        }
+    }
+}
+```
+
+```rs [src/virtio_blk.rs]
+fn set_low_32(value: &mut u64, low: u64) {
+    *value = (*value & 0xffff_ffff_0000_0000) | low;
+}
+
+fn set_high_32(value: &mut u64, high: u64) {
+    *value = (*value & 0x0000_0000_ffff_ffff) | (high << 32);
+}
+```
+
+```rs [src/virtio_blk.rs] {6-11}
+    pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
+        println!("[virtio-blk] MMIO write at {:#x}", offset);
+        assert_eq!(width, 4);
+        match offset {
+            /* ... */
+            0x80 => set_low_32(&mut self.requestq_desc_addr, value),
+            0x84 => set_high_32(&mut self.requestq_desc_addr, value),
+            0x90 => set_low_32(&mut self.requestq_driver_addr, value),
+            0x94 => set_high_32(&mut self.requestq_driver_addr, value),
+            0xa0 => set_low_32(&mut self.requestq_device_addr, value),
+            0xa4 => set_high_32(&mut self.requestq_device_addr, value),
+            _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
+        }
+    }
+```
+
+```rs [src/virtio_blk.rs] {6-11}
+    pub fn handle_mmio_read(&self, offset: u64, width: u64) -> u64 {
+        println!("[virtio-blk] MMIO read at {:#x}", offset);
+        assert_eq!(width, 4);
+        match offset {
+            /* ... */
+            0x80 => self.requestq_desc_addr & 0xffff_ffff,
+            0x84 => self.requestq_desc_addr >> 32,
+            0x90 => self.requestq_driver_addr & 0xffff_ffff,
+            0x94 => self.requestq_driver_addr >> 32,
+            0xa0 => self.requestq_device_addr & 0xffff_ffff,
+            0xa4 => self.requestq_device_addr >> 32,
+            _ => panic!("unknown virtio-blk mmio read: guest_addr={:#x}", offset),
+        }
+    }
+```
+
+```
+$ ./run.sh
+...
+[virtio-blk] MMIO write at 0x80
+[virtio-blk] MMIO write at 0x84
+[virtio-blk] MMIO write at 0x90
+[virtio-blk] MMIO write at 0x94
+[virtio-blk] MMIO write at 0xa0
+[virtio-blk] MMIO write at 0xa4
+[virtio-blk] MMIO write at 0x44
+[virtio-blk] MMIO read at 0xfc
+panic: panicked at src/virtio_blk.rs:78:18:
+unknown virtio-blk mmio read: guest_addr=0xfc
 ```

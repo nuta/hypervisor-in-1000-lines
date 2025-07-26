@@ -2,12 +2,23 @@ use spin::Mutex;
 
 pub static VIRTIO_BLK: Mutex<VirtioBlk> = Mutex::new(VirtioBlk::new());
 
+fn set_low_32(value: &mut u64, low: u64) {
+    *value = (*value & 0xffff_ffff_0000_0000) | low;
+}
+
+fn set_high_32(value: &mut u64, high: u64) {
+    *value = (*value & 0x0000_0000_ffff_ffff) | (high << 32);
+}
+
 pub struct VirtioBlk {
     status: u32,
     device_features_sel: u32,
     driver_features_sel: u32,
     requestq_ready: u32,
     requestq_size: u32,
+    requestq_desc_addr: u64,
+    requestq_driver_addr: u64,
+    requestq_device_addr: u64,
 }
 
 impl VirtioBlk  {
@@ -18,6 +29,9 @@ impl VirtioBlk  {
             driver_features_sel: 0,
             requestq_ready: 0,
             requestq_size: 0,
+            requestq_desc_addr: 0,
+            requestq_driver_addr: 0,
+            requestq_device_addr: 0,
         }
     }
 
@@ -31,6 +45,13 @@ impl VirtioBlk  {
             0x24 => self.driver_features_sel = value as u32, // Driver features selection
             0x30 => assert_eq!(value, 0), // Queue select (must be requestq)
             0x38 => self.requestq_size = value as u32, // Queue size (# of descriptors)
+            0x44 => {}, // Queue ready (ignored)
+            0x80 => set_low_32(&mut self.requestq_desc_addr, value),
+            0x84 => set_high_32(&mut self.requestq_desc_addr, value),
+            0x90 => set_low_32(&mut self.requestq_driver_addr, value),
+            0x94 => set_high_32(&mut self.requestq_driver_addr, value),
+            0xa0 => set_low_32(&mut self.requestq_device_addr, value),
+            0xa4 => set_high_32(&mut self.requestq_device_addr, value),
             _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
         }
     }
@@ -48,6 +69,12 @@ impl VirtioBlk  {
             0x34 => 128, // Max queue size (# of descriptors)
             0x44 => self.requestq_ready as u64, // Queue ready
             0x70 => self.status as u64,  // Device status
+            0x80 => self.requestq_desc_addr & 0xffff_ffff,
+            0x84 => self.requestq_desc_addr >> 32,
+            0x90 => self.requestq_driver_addr & 0xffff_ffff,
+            0x94 => self.requestq_driver_addr >> 32,
+            0xa0 => self.requestq_device_addr & 0xffff_ffff,
+            0xa4 => self.requestq_device_addr >> 32,
             _ => panic!("unknown virtio-blk mmio read: guest_addr={:#x}", offset),
         }
     }
