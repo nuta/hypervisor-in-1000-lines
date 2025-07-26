@@ -197,20 +197,20 @@ Let's start with `Status` register. According to the spec:
 
 ```rs [src/virtio_blk.rs] {2,8,15,27}
 pub struct VirtioBlk {
-    device_status: u32,
+    status: u32,
 }
 
 impl VirtioBlk  {
     pub const fn new() -> Self {
         Self {
-            device_status: 0,
+            status: 0,
         }
     }
 
     pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
         assert_eq!(width, 4);
         match offset {
-            0x70 => self.device_status = value as u32, // Device status
+            0x70 => self.status = value as u32, // Device status
             _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
         }
     }
@@ -222,7 +222,7 @@ impl VirtioBlk  {
             0x04 => 0x2,         // Version
             0x08 => 0x2,         // Device ID (block device)
             0x0c => 0x554d4551,  // Vendor ID "QEMU"
-            0x70 => self.device_status as u64,  // Device status
+            0x70 => self.status as u64,  // Device status
             _ => panic!("unknown virtio-blk mmio read: guest_addr={:#x}", offset),
         }
     }
@@ -242,8 +242,8 @@ impl VirtioBlk  {
 
 ```rs [src/virtio_blk.rs] {3}
 pub struct VirtioBlk {
-    device_status: u32,
-    device_features_select: u32,
+    status: u32,
+    features_select: u32,
 }
 ```
 
@@ -251,8 +251,8 @@ pub struct VirtioBlk {
     pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
         assert_eq!(width, 4);
         match offset {
-            0x70 => self.device_status = value as u32, // Device status
-            0x14 => self.device_features_select = value as u32, // Device features selection
+            0x70 => self.status = value as u32, // Device status
+            0x14 => self.features_select = value as u32, // Device features selection
             _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
         }
     }
@@ -267,9 +267,9 @@ pub struct VirtioBlk {
             0x08 => 0x2,         // Device ID (block device)
             0x0c => 0x554d4551,  // Vendor ID "QEMU"
             // Device features: 31-0 bits
-            0x10 if self.device_features_select == 0 => 0,
+            0x10 if self.features_select == 0 => 0,
             // Device features: 63-32 bits
-            0x10 if self.device_features_select == 1 => 0,
+            0x10 if self.features_select == 1 => 0,
 ```
 
 ```
@@ -283,9 +283,9 @@ Oh, the guest complains that the version is not supported. Let's add the feature
 
 ```rs [src/virtio_blk.rs] {4}
             // Device features: 31-0 bits
-            0x10 if self.device_features_select == 0 => 0,
+            0x10 if self.features_select == 0 => 0,
             // Device features: 63-32 bits (VIRTIO_F_VERSION_1)
-            0x10 if self.device_features_select == 0x0000_0001,
+            0x10 if self.features_select == 0x0000_0001,
 ```
 
 ```
