@@ -187,6 +187,8 @@ Great, Linux's device driver does not complain about the magic value, and wants 
 >
 > [Virtual I/O Device (VIRTIO) Version 1.3](https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.html)
 
+## Emulate device status register
+
 Let's start with `Status` register. According to the spec:
 
 > **Device status**
@@ -226,3 +228,72 @@ impl VirtioBlk  {
     }
 }
 ```
+
+## Emulate device features register
+
+> **DeviceFeatures (0x010): Flags representing features the device supports**
+>
+> Reading from this register returns 32 consecutive flag bits, the least significant bit depending on the last value written to `DeviceFeaturesSel`. Access to this register returns bits `DeviceFeaturesSel * 32` to (`DeviceFeaturesSel * 32) + 31`, eg. feature bits 0 to 31 if `DeviceFeaturesSel` is set to 0 and features bits 32 to 63 if DeviceFeaturesSel is set to 1.
+
+> **DeviceFeaturesSel (0x020): Device (host) features word selection**
+>
+> Writing to this register selects a set of 32 device feature bits accessible by reading from `DeviceFeatures`.
+
+
+```rs [src/virtio_blk.rs] {3}
+pub struct VirtioBlk {
+    device_status: u32,
+    device_features_select: u32,
+}
+```
+
+```rs [src/virtio_blk.rs] {5}
+    pub fn handle_mmio_write(&mut self, offset: u64, value: u64, width: u64) {
+        assert_eq!(width, 4);
+        match offset {
+            0x70 => self.device_status = value as u32, // Device status
+            0x14 => self.device_features_select = value as u32, // Device features selection
+            _ => panic!("unknown virtio-blk mmio write: offs={:#x}", offset),
+        }
+    }
+```
+
+```rs [src/virtio_blk.rs] {8-11}
+    pub fn handle_mmio_read(&self, offset: u64, _width: u64) -> u64 {
+        println!("[MMIO]: read from virtio-blk at {:#x}", offset);
+        match offset {
+            0x00 => 0x74726976,  // Magic value "virt"
+            0x04 => 0x2,         // Version
+            0x08 => 0x2,         // Device ID (block device)
+            0x0c => 0x554d4551,  // Vendor ID "QEMU"
+            // Device features: 31-0 bits
+            0x10 if self.device_features_select == 0 => 0,
+            // Device features: 63-32 bits
+            0x10 if self.device_features_select == 1 => 0,
+```
+
+```
+$ ./run.sh
+...
+[guest] [    0.194779] virtio_blk virtio0: New virtio-mmio devices (version 2) must provide VIRTIO_F_VERSION_1 feature!
+...
+```
+
+Oh, the guest complains that the version is not supported. Let's add the feature bit.
+
+```rs [src/virtio_blk.rs] {4}
+            // Device features: 31-0 bits
+            0x10 if self.device_features_select == 0 => 0,
+            // Device features: 63-32 bits (VIRTIO_F_VERSION_1)
+            0x10 if self.device_features_select == 0x0000_0001,
+```
+
+```
+$ ./run.sh
+...
+panic: panicked at src/virtio_blk.rs:23:18:
+unknown virtio-blk mmio write: offs=0x24
+```
+
+##
+
