@@ -1,5 +1,8 @@
 use spin::Mutex;
 
+pub const DISK_IMAGE: &[u8] = include_bytes!("../linux/rootfs.squashfs");
+pub const DISK_CAPACITY: u64 = DISK_IMAGE.len() as u64 / 512;
+
 pub static VIRTIO_BLK: Mutex<VirtioBlk> = Mutex::new(VirtioBlk::new());
 
 fn set_low_32(value: &mut u64, low: u64) {
@@ -75,6 +78,9 @@ impl VirtioBlk  {
             0x94 => self.requestq_driver_addr >> 32,
             0xa0 => self.requestq_device_addr & 0xffff_ffff,
             0xa4 => self.requestq_device_addr >> 32,
+            0xfc => 0x0,                        // Config generation
+            0x100 => DISK_CAPACITY & 0xffffffff, // Device-specific config: capacity (low 32 bits)
+            0x104 => DISK_CAPACITY >> 32, // Device-specific config: capacity (high 32 bits)
             _ => panic!("unknown virtio-blk mmio read: guest_addr={:#x}", offset),
         }
     }
