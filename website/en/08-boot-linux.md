@@ -27,7 +27,7 @@ struct RiscvImageHeader {
 }
 
 pub const GUEST_BASE_ADDR: u64 = 0x8000_0000;
-const MEMORY_SIZE: usize = 64 * 1024 * 1024;
+pub const MEMORY_SIZE: usize = 64 * 1024 * 1024;
 
 fn copy_and_map(
     table: &mut GuestPageTable,

@@ -1,4 +1,4 @@
-use crate::{allocator::alloc_pages, guest_page_table::{GuestPageTable, PTE_R, PTE_W, PTE_X}};
+use crate::{guest_memory::{DTB_MEMORY, GUEST_MEMORY}, guest_page_table::{GuestPageTable, PTE_R, PTE_W, PTE_X}};
 use alloc::vec::Vec;
 use alloc::format;
 use core::mem::size_of;
@@ -24,18 +24,7 @@ pub const PLIC_ADDR: u64 = 0x0c00_0000;
 pub const PLIC_END: u64 = PLIC_ADDR + 0x400000;
 pub const VIRTIO_BLK_ADDR: u64 = 0x0a00_0000;
 pub const VIRTIO_BLK_END: u64 = VIRTIO_BLK_ADDR + 0x1000;
-const MEMORY_SIZE: usize = 64 * 1024 * 1024;
-
-fn copy_and_map(table: &mut GuestPageTable, data: &[u8], guest_addr: u64, len: usize, flags: u64) {
-    assert!(data.len() <= len, "data is beyond the region");
-    let raw_ptr = alloc_pages(len);
-    unsafe {
-        core::ptr::copy_nonoverlapping(data.as_ptr(), raw_ptr, data.len());
-    }
-    for off in (0..len).step_by(4096) {
-        table.map(guest_addr + off as u64, raw_ptr as u64 + off as u64, flags);
-    }
-}
+pub const MEMORY_SIZE: usize = 64 * 1024 * 1024;
 
 pub fn load_linux_kernel(table: &mut GuestPageTable, image: &[u8]) {
     assert!(image.len() >= size_of::<RiscvImageHeader>());
@@ -44,11 +33,10 @@ pub fn load_linux_kernel(table: &mut GuestPageTable, image: &[u8]) {
 
     let kernel_size = u64::from_le(header.image_size);
     assert!(image.len() <= MEMORY_SIZE);
-    copy_and_map(table, image, GUEST_BASE_ADDR, MEMORY_SIZE, PTE_R | PTE_W | PTE_X);
+    GUEST_MEMORY.write_bytes(table, image, PTE_R | PTE_W | PTE_X);
 
     let dtb = build_device_tree().unwrap();
-    assert!(dtb.len() <= 0x10000, "DTB is too large");
-    copy_and_map(table, &dtb, GUEST_DTB_ADDR, dtb.len(), PTE_R);
+    DTB_MEMORY.write_bytes(table, &dtb, PTE_R);
 
     println!("loaded kernel: size={}KB", kernel_size / 1024);
 }
