@@ -54,7 +54,7 @@ impl VirtioBlk  {
         match offset {
             /* ... */
             // Config generation
-            0xfc => 0x0,                        
+            0xfc => 0x0,
             // Device-specific config: capacity (low 32 bits)
             0x100 => DISK_CAPACITY & 0xffffffff,
             // Device-specific config: capacity (high 32 bits)
