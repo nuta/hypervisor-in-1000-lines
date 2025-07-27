@@ -82,4 +82,126 @@ unknown virtio-blk mmio write: offs=0x50
 
 Now it fails with offset 0x50 (`QueueNotify`), which notifies the hypervisor that the guest has sent a request - that is, the virtio initialization is complete! Good job!
 
-##
+## Implement queue notify register
+
+```rs [src/virtio_blk.rs] {6,11-14}
+impl VirtioBlk {
+	fn handle_mmio_write(&self, offset: u64, width: u64, value: u64) {
+		match offset {
+			/* ... */
+            0x44 => {}, // Queue ready (ignored)
+            0x50 => self.process_queue(value as usize), // Queue notify
+			/* ... */
+		}
+	}
+
+	fn process_queue(&mut self, queue_index: usize) {
+        assert_eq!(queue_index, 0, "only queue #0 (requestq) is supported");
+		println!("[virtio-blk] processing requestq");
+	}
+}
+```
+
+```
+$ ./run.sh
+...
+[guest] [    0.212706] virtio_blk virtio0: [vda] 1920 512-byte logical blocks (983 kB/960 KiB)
+[virtio-blk] MMIO read at 0x70
+[virtio-blk] MMIO write at 0x70
+[virtio-blk] MMIO write at 0x50
+[virtio-blk] processing requestq
+```
+
+## How virtqueue works
+
+```rs [src/virtio_blk.rs]
+#[repr(C)]
+struct VirtqDesc {
+    addr: u64,  // Buffer physical address
+    len: u32,   // Buffer length
+    flags: u16, // Buffer flags
+    next: u16,  // Next descriptor index (if chained)
+}
+
+#[repr(C)]
+struct VirtqAvail {
+    flags: u16,
+    idx: u16,
+    ring: [u16; 128], // Ring of descriptor indices
+}
+
+#[repr(C)]
+struct VirtqUsed {
+    flags: u16,
+    idx: u16,
+    ring: [VirtqUsedElem; 128],
+}
+
+#[repr(C)]
+struct VirtqUsedElem {
+    id: u32,  // Descriptor index
+    len: u32, // Length of data written
+}
+```
+
+```rs
+struct VirtioBlk {
+  /// Available Ring (Driver area: requests from the guest).
+  avail: &'static VirtqAvail,
+  /// Used Ring (Device area: processed requests to the guest).
+  used: &'static mut VirtqUsed,
+  /// Descriptor Table.
+  descs: &'static [VirtqDesc; 128],
+  /// The next index to pop from the available ring.
+  next_avail_idx: u16,
+}
+
+impl VirtioBlk {
+	fn process_queue(&mut self) {
+		while self.avail.idx != self.next_avail_idx {
+			let head_index = self.avail.ring[self.next_avail_idx % QUEUE_SIZE];
+
+			// The first descriptor contains the request metadata.
+			let desc1 = self.descs[head_index];
+			let req: VirtioBlkReq = read_guest_addr(desc1.addr);
+			if req.type != VIRTIO_BLK_T_IN {
+				panic!("unsupported request type: {}", req.req_type);
+			}
+
+			// The second descriptor points to the data buffer.
+			let desc2 = self.descs[desc1.next as usize];
+			let copy_len = desc2.len;
+
+			// Write the disk image, and status byte (VIRTIO_BLK_S_OK).
+			let offset = req.sector * 512;
+			write_guest_addr(desc2.addr, &DISK_IMAGE[offset..offset + copy_len]);
+			write_guest_addr(desc2.addr + copy_len, VIRTIO_BLK_S_OK);
+
+			// Update the used queue.
+			self.used.ring[self.used.idx % QUEUE_SIZE] = VirtqUsedElem {
+				id: head_index,
+				len: copy_len + size_of::<u8>(),
+			};
+
+			// Update the device's read offsets.
+			self.used.idx += 1;
+			self.next_avail_idx += 1;
+		}
+
+		// Notify the driver that the queue has been processed.
+		self.trigger_interrupt();
+	}
+}
+```
+
+1. Check if there are any requests to process.
+2. Pop a element from the available ring, which contains the head index of the descriptor chain.
+3. Read the descriptor chain. Each descriptor contains the guest address of requests.
+4. Update the used ring to tell the driver that we've processed a request.
+5. Once it's done, notify the driver that the queue has processed requests.
+
+However, 
+
+- `volatile`
+- How can we access the virtqueue from the hypervisor?
+- Endianess.

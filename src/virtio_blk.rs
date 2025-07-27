@@ -49,6 +49,7 @@ impl VirtioBlk  {
             0x30 => assert_eq!(value, 0), // Queue select (must be requestq)
             0x38 => self.requestq_size = value as u32, // Queue size (# of descriptors)
             0x44 => {}, // Queue ready (ignored)
+            0x50 => self.process_queue(value as usize), // Queue notify
             0x80 => set_low_32(&mut self.requestq_desc_addr, value),
             0x84 => set_high_32(&mut self.requestq_desc_addr, value),
             0x90 => set_low_32(&mut self.requestq_driver_addr, value),
@@ -83,5 +84,10 @@ impl VirtioBlk  {
             0x104 => DISK_CAPACITY >> 32, // Device-specific config: capacity (high 32 bits)
             _ => panic!("unknown virtio-blk mmio read: guest_addr={:#x}", offset),
         }
+    }
+
+    fn process_queue(&mut self, queue_index: usize) {
+        assert_eq!(queue_index, 0, "only queue #0 (requestq) is supported");
+		println!("[virtio-blk] processing requestq");
     }
 }
