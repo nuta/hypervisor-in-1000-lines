@@ -1,4 +1,8 @@
+use core::num::Wrapping;
+
 use spin::Mutex;
+
+use crate::guest_memory::GUEST_MEMORY;
 
 pub const DISK_IMAGE: &[u8] = include_bytes!("../linux/rootfs.squashfs");
 pub const DISK_CAPACITY: u64 = DISK_IMAGE.len() as u64 / 512;
@@ -13,6 +17,42 @@ fn set_high_32(value: &mut u64, high: u64) {
     *value = (*value & 0x0000_0000_ffff_ffff) | (high << 32);
 }
 
+#[repr(C)]
+struct VirtqDesc {
+    addr: u64,  // Buffer physical address
+    len: u32,   // Buffer length
+    flags: u16, // Buffer flags
+    next: u16,  // Next descriptor index (if chained)
+}
+
+#[repr(C)]
+struct VirtqAvail {
+    flags: u16,
+    idx: u16,
+    ring: [u16; 128], // Ring of descriptor indices
+}
+
+#[repr(C)]
+struct VirtqUsed {
+    flags: u16,
+    idx: u16,
+    ring: [VirtqUsedElem; 128],
+}
+
+#[repr(C)]
+struct VirtqUsedElem {
+    id: u32,  // Descriptor index
+    len: u32, // Length of data written
+}
+
+
+#[repr(C)]
+struct VirtioBlkReq {
+    req_type: u32,
+    reserved: u32,
+    sector: u64,
+}
+
 pub struct VirtioBlk {
     status: u32,
     device_features_sel: u32,
@@ -22,6 +62,7 @@ pub struct VirtioBlk {
     requestq_desc_addr: u64,
     requestq_driver_addr: u64,
     requestq_device_addr: u64,
+    requestq_next_avail: Wrapping<u16>,
 }
 
 impl VirtioBlk  {
@@ -35,6 +76,7 @@ impl VirtioBlk  {
             requestq_desc_addr: 0,
             requestq_driver_addr: 0,
             requestq_device_addr: 0,
+            requestq_next_avail: Wrapping(0),
         }
     }
 
@@ -89,5 +131,45 @@ impl VirtioBlk  {
     fn process_queue(&mut self, queue_index: usize) {
         assert_eq!(queue_index, 0, "only queue #0 (requestq) is supported");
 		println!("[virtio-blk] processing requestq");
+        loop {
+            let avail: VirtqAvail = GUEST_MEMORY.read(self.requestq_driver_addr);
+            if self.requestq_next_avail.0 == u16::from_le(avail.idx) {
+                break;
+            }
+            
+            println!("avail: {:?}", avail.idx);
+            let avail_index = self.requestq_next_avail.0 as u64 % self.requestq_size as u64;
+            let desc0_index = u16::from_le(avail.ring[avail_index as usize]) as u64;
+            let desc0: VirtqDesc = GUEST_MEMORY.read(self.requestq_desc_addr + desc0_index * size_of::<VirtqDesc>() as u64);
+            let desc0_addr = u64::from_le(desc0.addr);
+            let desc0_len = u32::from_le(desc0.len);
+            let desc0_next = u16::from_le(desc0.next);
+           
+            println!("desc[{}]: addr={:#x}, len={}, next={}", desc0_index, desc0_addr, desc0_len, desc0_next);
+
+            let desc1_index = desc0_next as u64;
+            let desc1: VirtqDesc = GUEST_MEMORY.read(self.requestq_desc_addr + desc0_next as u64 * size_of::<VirtqDesc>() as u64);
+            let desc1_addr = u64::from_le(desc1.addr);
+            let desc1_len = u32::from_le(desc1.len);
+            let desc1_next = u16::from_le(desc1.next);
+            println!("desc[{}]: addr={:#x}, len={}, next={}", desc1_index, desc1_addr, desc1_len, desc1_next);
+
+            let desc2_index = desc1_next as u64;
+            let desc2: VirtqDesc = GUEST_MEMORY.read(self.requestq_desc_addr + desc1_next as u64 * size_of::<VirtqDesc>() as u64);
+            let desc2_addr = u64::from_le(desc2.addr);
+            let desc2_len = u32::from_le(desc2.len);
+            let desc2_next = u16::from_le(desc2.next);
+            println!("desc[{}]: addr={:#x}, len={}, next={}", desc2_index, desc2_addr, desc2_len, desc2_next);
+
+            let req: VirtioBlkReq = GUEST_MEMORY.read(desc1_addr);
+            let sector = u64::from_le(req.sector);
+            let start = (sector * 512) as usize;
+            let end = start + desc1_len as usize;
+            GUEST_MEMORY.write_bytes(desc2_addr, &DISK_IMAGE[start..end]);
+
+            let used: VirtqUsed = GUEST_MEMORY.read(self.requestq_device_addr);
+
+            self.requestq_next_avail += 1;
+        }
     }
 }

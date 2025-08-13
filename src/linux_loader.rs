@@ -33,10 +33,10 @@ pub fn load_linux_kernel(table: &mut GuestPageTable, image: &[u8]) {
 
     let kernel_size = u64::from_le(header.image_size);
     assert!(image.len() <= MEMORY_SIZE);
-    GUEST_MEMORY.write_bytes(table, image, PTE_R | PTE_W | PTE_X);
+    GUEST_MEMORY.write_and_map(table, image, PTE_R | PTE_W | PTE_X);
 
     let dtb = build_device_tree().unwrap();
-    DTB_MEMORY.write_bytes(table, &dtb, PTE_R);
+    DTB_MEMORY.write_and_map(table, &dtb, PTE_R);
 
     println!("loaded kernel: size={}KB", kernel_size / 1024);
 }
