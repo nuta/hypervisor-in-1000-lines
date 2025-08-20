@@ -7,7 +7,7 @@ title: Hello World
 > [!WARNING]
 > This chapter is work in progress.
 
-In the previous chapter, we wrote a minimal boot code in Rust.
+In the previous chapter, we wrote a minimal boot code in Rust. In this chapter, we'll implement `println!` macro to make it easier to print debug messages. It will be the key debugging tool for us.
 
 ## Supervisor Binary Interface (SBI)
 
@@ -241,15 +241,32 @@ fn main() -> ! {
 - `stval` CSR holds the trap-specific value, such as the virtual address of a page fault.
 - It uses the linker script to place the trap handler at an aligned address. This is because lower bits of `stvec` are used for the trap handler mode.
 
-Let's try it out:
+Let's test the implementation by causing a trap intentionally by adding `unimp` pseudo instruction after setting `stvec`:
 
-TODO: 
+```rust [src/main.rs] {8}
+fn main() -> ! {
+    unsafe {
+        let bss_start = &raw mut __bss;
+        let bss_size = (&raw mut __bss_end as usize) - (&raw mut __bss as usize);
+        core::ptr::write_bytes(bss_start, 0, bss_size);
+
+        asm!("csrw stvec, {}", in(reg) trap::trap_handler as usize);
+        asm!("unimp"); // Illegal instruction here!
+    }
 ```
 
-```
+Let's try it:
 
 ```
 Booting hypervisor...
-v = ['a', 'b', 'c']
 trap handler: illegal instruction at 0x80201964 (stval=0x0)
 ```
+
+The trap handler is called and we can see the details of the trap. By using `llvm-addr2line`, we can find the line number of the panic in the source code.
+
+```
+$ llvm-addr2line -e hypervisor.elf 0x80201964
+/Users/seiya/dev/hypervisor-in-1000-lines/src/main.rs:54
+```
+
+Looks correct!
