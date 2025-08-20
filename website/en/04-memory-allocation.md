@@ -1,8 +1,8 @@
 ---
-title: Memory allocation
+title: Memory Allocation
 ---
 
-# Memory allocation
+# Memory Allocation
 
 > [!WARNING]
 > This chapter is work in progress.

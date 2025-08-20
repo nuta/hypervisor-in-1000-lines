@@ -4,9 +4,6 @@ title: Hello World
 
 # Hello World
 
-> [!WARNING]
-> This chapter is work in progress.
-
 In the previous chapter, we wrote a minimal boot code in Rust. In this chapter, we'll implement `println!` macro to make it easier to print debug messages. It will be the key debugging tool for us.
 
 ## Supervisor Binary Interface (SBI)

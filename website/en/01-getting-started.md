@@ -4,9 +4,6 @@ title: Getting Started
 
 # Getting Started
 
-> [!WARNING]
-> This chapter is work in progress.
-
 This book assumes you're using a UNIX or UNIX like OS such as macOS or Ubuntu. If you're on Windows, install Windows Subsystem for Linux (WSL2) and follow the Ubuntu instructions.
 
 ## macOS
