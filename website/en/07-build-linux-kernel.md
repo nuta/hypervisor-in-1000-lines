@@ -4,6 +4,9 @@ title: Build Linux Kernel
 
 # Build Linux Kernel
 
+> [!WARNING]
+> This chapter is work in progress.
+
 ```Dockerfile [linux/Dockerfile]
 FROM ubuntu:24.04
 

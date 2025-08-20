@@ -4,6 +4,9 @@ title: Memory-Mapped I/O
 
 # Memory-Mapped I/O
 
+> [!WARNING]
+> This chapter is work in progress.
+
 ```rs [src/trap.rs] {2-1}
     match scause {
         21 /* load guest-page fault */ | 23 /* store/AMO guest-page fault */ => {

@@ -4,6 +4,9 @@ title: Hello from Guest
 
 # Hello from Guest
 
+> [!WARNING]
+> This chapter is work in progress.
+
 
 ## Refactoring: Introduce `VCpu` struct
 

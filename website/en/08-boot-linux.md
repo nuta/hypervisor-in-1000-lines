@@ -4,6 +4,9 @@ title: Boot Linux
 
 # Boot Linux
 
+> [!WARNING]
+> This chapter is work in progress.
+
 ## Loading Linux kernel image
 
 ```rs [src/linux_loader.rs]

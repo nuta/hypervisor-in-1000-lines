@@ -4,6 +4,9 @@ title: Hello World
 
 # Hello World
 
+> [!WARNING]
+> This chapter is work in progress.
+
 In the previous chapter, we wrote a minimal boot code in Rust.
 
 ## Supervisor Binary Interface (SBI)
@@ -59,6 +62,8 @@ fn main() -> ! {
 }
 ```
 
+You should see the very first Hello World message from the hypervisor!
+
 ```
 $ ./run.sh
 Boot HART MHPM Info       : 16 (0x0007fff8)
@@ -69,6 +74,10 @@ Hi!
 ```
 
 ## `println!`
+
+Printing a character is a giant step for our productivity, but it's still not enough. In normal Rust programs, we use `println!` macro to print not just a single character, but a string, variables, and more in a human-readable format.
+
+However, the macro is not available in `no_std` environment. That said, implementing it is simple:
 
 ```rust [src/print.rs]
 pub struct Printer;
@@ -90,6 +99,11 @@ macro_rules! println {
 }
 ```
 
+- Our own `println!` macro is defined. It uses `writeln!` macro ([documentation](https://doc.rust-lang.org/std/macro.writeln.html)) internally, which takes a writer object and format arguments.
+- `Printer` implements the writer object required by `writeln!`, and it just prints each character to the serial port.
+
+That's it! Let's try it out:
+
 ```rust [src/main.rs] {1}
 #[macro_use]
 mod print;
@@ -103,6 +117,8 @@ fn main() -> ! {
 }
 ```
 
+You'll see this charming boot message:
+
 ```
 $ ./run.sh
 ...
@@ -110,6 +126,12 @@ Booting hypervisor...
 ```
 
 ## Print on a panic
+
+We've finished the title of this chapter "Hello World", but let's do some more things for better debugging experience.
+
+The first thing is to print something on a panic. Currently, our panic handler is just a loop. Since it does not output anything, it's not obvious why it panicked.
+
+To dump the details of a panic, we can just use `println!` macro:
 
 ```rust [src/main.rs] {3}
 #[panic_handler]
@@ -124,6 +146,14 @@ pub fn panic_handler(info: &PanicInfo) -> ! {
 ```
 
 ## Trap handler
+
+> [!TIP]
+>
+> For more details about traps, read [OS in 1,000 Lines](https://operating-system-in-1000-lines.vercel.app/en/08-exception).
+
+Another nice-to-have thing is to print something on a trap, which happens when CPU encounters an event that OS needs to handle, such as invalid memory access.
+
+Let's implement a trap handler that prints the details of a trap:
 
 ```rust [src/main.rs] {1}
 mod trap;
@@ -204,6 +234,16 @@ fn main() -> ! {
     }
 ```
 
+- `stvec` CSR holds the base address of the trap handler.
+- `read_csr!` is a macro that reads a CSR. You can use `asm!` directly, but it's a bit verbose.
+- `scause` CSR holds the cause of a trap.
+- `sepc` CSR holds the program counter at the time of a trap.
+- `stval` CSR holds the trap-specific value, such as the virtual address of a page fault.
+- It uses the linker script to place the trap handler at an aligned address. This is because lower bits of `stvec` are used for the trap handler mode.
+
+Let's try it out:
+
+TODO: 
 ```
 
 ```

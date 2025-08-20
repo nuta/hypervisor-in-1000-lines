@@ -4,6 +4,9 @@ title: Boot
 
 # Boot
 
+> [!WARNING]
+> This chapter is work in progress.
+
 In this chapter, we'll write a minimal kernel for RISC-V, to be used as the base for our hypervisor.
 
 The kernel will be written in Rust, but it's still very similar to what you'd write in C (see [OS in 1000 lines](https://operating-system-in-1000-lines.vercel.app/en/04-boot)). Enjoy comparing the two and notice the power of Rust.

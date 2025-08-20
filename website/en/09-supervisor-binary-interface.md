@@ -4,6 +4,9 @@ title: Supervisor Binary Interface
 
 # Supervisor Binary Interface
 
+> [!WARNING]
+> This chapter is work in progress.
+
 SBI is a RISC-V's standard interface for operating systems to interact with the firmware and hypervisor. You can think of it as the so-called BIOS/UEFI in x86-64.
 
 ## Refactor the SBI handler

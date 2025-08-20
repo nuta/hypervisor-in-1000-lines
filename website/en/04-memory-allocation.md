@@ -4,6 +4,9 @@ title: Memory allocation
 
 # Memory allocation
 
+> [!WARNING]
+> This chapter is work in progress.
+
 ## Bump allocator
 
 ```

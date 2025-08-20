@@ -4,6 +4,9 @@ title: Guest Mode
 
 # Guest Mode
 
+> [!WARNING]
+> This chapter is work in progress.
+
 ## Entering HS-mode
 
 Add `h=true` to the `-cpu` option.

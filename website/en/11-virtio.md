@@ -4,6 +4,9 @@ title: Virtio
 
 # Virtio
 
+> [!WARNING]
+> This chapter is work in progress.
+
 ## Advertise the virtual disk to the guest
 
 ```rust [src/linux_loader.rs] {2}
