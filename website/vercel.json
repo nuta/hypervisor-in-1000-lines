@@ -1,0 +1,11 @@
+{
+    "framework": null,
+    "buildCommand": "npm run build",
+    "installCommand": "pnpm i",
+    "outputDirectory": ".vitepress/dist",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "github": {
+      "silent": true
+    }
+}  
