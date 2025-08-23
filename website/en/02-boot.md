@@ -115,6 +115,12 @@ channel = "stable"
 targets = ["riscv64gc-unknown-none-elf"]
 ```
 
+> [!TIP]
+>
+> If you're familiar with bare-metal programming in Rust, you might be wondering *"stable? not nightly?"*.
+>
+> And the answer is ... yes, we will use stable toolchain. Bare-metal Rust used to require nightly unstable features, but thanks to the Rust team's effort, everything we need is now stabilized. Yay!
+
 ## Minimal boot code
 
 Finally we can write some Rust code. Unfrotunately, we don't have a way to print anything yet, so let it be an infinite loop for now:
