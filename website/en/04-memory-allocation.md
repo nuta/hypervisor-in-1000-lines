@@ -165,3 +165,20 @@ v = ['a', 'b', 'c']
 ```
 
 It works!
+
+## Page allocator
+
+Let's prepare 
+
+Page allocator is a memory allocator that allocates memory in pages, where each *page* is a fixed-size memory region. In most cases, it's 4KiB (4096 bytes).
+
+> [!TIP]
+>
+> RISC-V and other modern CPUs support bigger page sizes.
+
+In this book, we'll use the global allocator for simplicity. Construct a memory request to the allocator `layout` with the required length and alignment:
+
+```rust [src/allocator.rs]
+```
+
+That's it!
