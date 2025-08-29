@@ -10,7 +10,6 @@ mod guest_page_table;
 mod trap;
 mod vcpu;
 mod linux_loader;
-mod virtio_blk;
 mod guest_memory;
 
 use core::arch::asm;

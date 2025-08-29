@@ -12,7 +12,7 @@ In this chapter, we'll implement a simple bump allocator to enable those feature
 
 Bump allocator is the simplest allocation algorithm. Imagine you have a Yule Log Cake. As people come to your house "memory allocator", you slice off a piece of the cake, and give it to them. Your knife cuts the cake from the top to the bottom, and you can't take it back.
 
-In bump allocator, your have the next pointer (the knife's position), and the end pointer (the bottom of the cake). As it allocates memory, it moves the next pointer down until it reaches the end.
+In bump allocator, you have the next pointer (the knife's position), and the end pointer (the bottom of the cake). As it allocates memory, it moves the next pointer down until it reaches the end.
 
 It's very simple, but the critical drawback is that you can't free memory. That being said, the simplicity makes it very fast, and it's sometimes used in real-world applications.
 
@@ -168,8 +168,6 @@ It works!
 
 ## Page allocator
 
-Let's prepare 
-
 Page allocator is a memory allocator that allocates memory in pages, where each *page* is a fixed-size memory region. In most cases, it's 4KiB (4096 bytes).
 
 > [!TIP]
@@ -179,6 +177,10 @@ Page allocator is a memory allocator that allocates memory in pages, where each 
 In this book, we'll use the global allocator for simplicity. Construct a memory request to the allocator `layout` with the required length and alignment:
 
 ```rust [src/allocator.rs]
+pub fn alloc_pages(len: usize) -> *mut u8 {
+    let layout = Layout::from_size_align(len, 0x1000).unwrap();
+    unsafe { GLOBAL_ALLOCATOR.alloc_zeroed(layout) as *mut u8 }
+}
 ```
 
 That's it!

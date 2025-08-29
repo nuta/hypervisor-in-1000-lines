@@ -40,9 +40,9 @@ export default defineConfig({
               { link: '/en/08-build-linux-kernel', text: '08. Build Linux Kernel' },
               { link: '/en/09-boot-linux', text: '09. Boot Linux' },
               { link: '/en/10-supervisor-binary-interface', text: '10. Supervisor Binary Interface' },
-              { link: '/en/11-memory-mapped-io', text: '11. Memory-Mapped I/O' },
-              { link: '/en/12-virtio', text: '12. Virtio' },
-              { link: '/en/13-virtio-blk', text: '13. Virtio-blk' },
+              { link: '/en/11-memory-mapped-io', text: '11. Memory Mapped I/O' },
+              { link: '/en/12-interrupt-injection', text: '12. Interrupt Injection' },
+              { link: '/en/13-outro', text: '13. Outro' },
             ]
           },
           {

@@ -4,11 +4,55 @@ title: Hello from Guest
 
 # Hello from Guest
 
-> [!WARNING]
-> This chapter is work in progress.
+Our goal in this chapter is to print a "Hello, world!" message from the guest.
 
+To say hello from the guest, we need to introduce a `putchar` function, or more precisely, hypercall (*"hypervisor call"*), to the guest.
 
-## Refactoring: Introduce `VCpu` struct
+Hypercalls are similar to system calls (both use `ecall` instruction), but hypercalls are called from the guest mode. The hypercall handling flow is as follows:
+
+1. The guest program calls `ecall` instruction with parameters in registers.
+2. The CPU switches to the HS-mode, and jumps to the trap handler specified in the `stvec` CSR.
+3. The trap handler saves the guest state, and then determines the cause of the trap (`ecall` from the guest) by reading the `scause` CSR.
+4. After handling the hypercall, the trap handler restores the guest state, and goes back to the guest.
+
+Doesn't sound mostly identical to the [system call handling flow](https://1000os.seiya.me/en/08-exception)?
+
+## Hypercall interface
+
+We learned that the hypercalls are similar to the system calls, but there is a missing piece: system calls define its interface (e.g. [Linux system calls](https://man7.org/linux/man-pages/man2/syscalls.2.html)). What's the equivalent of that in hypercalls?
+
+The answer is SBI (Supervisor Binary Interface). Our hypervisor already uses it to print characters, and the same applies to the guest OS!
+
+## SBI call from guest
+
+Let's call the SBI's *"Console Putchar"* extension from the guest to print a character `A`:
+
+```asm [guest.S]
+.section .text
+.global guest_boot
+guest_boot:
+    li a7, 1        # Extension ID: 1 (legacy console)
+    li a6, 0        # Function ID: 0 (putchar)
+    li a0, 'A'      # Parameter: 'A'
+    ecall           # Call SBI (hypervisor)
+
+halt:
+    j halt          # Infinite loop
+```
+
+`ecall` triggers a trap to the hypervisor, and our trap handler should panic with `environment call from VS-mode`, that is, `ecall` from the guest kernel mode:
+
+```
+$ ./run.sh
+Booting hypervisor...
+map: 00100000 -> 80305000
+panic: panicked at src/trap.rs:51:5:
+trap handler: environment call from VS-mode at 0x100008 (stval=0x0)
+```
+
+## Introduce `VCpu` struct
+
+Before implementing the hypercall, let's refactor the code to manage the guest state in a separate struct `VCpu`:
 
 ```rust [src/vcpu.rs]
 use core::arch::asm;
@@ -72,31 +116,13 @@ fn main() -> ! {
 }
 ```
 
-## SBI call from guest
-
-```asm [guest.S]
-.section .text
-.global guest_boot
-guest_boot:
-    li a7, 1        # Extension ID: 1 (legacy console)
-    li a6, 0        # Function ID: 0 (putchar)
-    li a0, 'A'      # Parameter: 'A'
-    ecall           # Call SBI (hypervisor)
-
-halt:
-    j halt          # Infinite loop
-```
-
-```
-$ ./run.sh
-Booting hypervisor...
-map: 00100000 -> 80305000
-panic: panicked at src/trap.rs:51:5:
-trap handler: environment call from VS-mode at 0x100008 (stval=0x0)
-```
-
+No functional changes. Just refactoring a bit for the following sections!
 
 ## Saving the guest state
+
+We already catch the `ecall` from the guest kernel mode, but before handling the hypercall, we need to implement the guest mode state saving.
+
+Prepare the fields to save the guest mode state:
 
 ```rust [src/vcpu.rs] {6-37}
 pub struct VCpu {
@@ -139,6 +165,12 @@ pub struct VCpu {
 }
 ```
 
+In addition to general-purpose registers, `host_sp` is also added to the `VCpu` struct. As the name suggests, `host_sp` is the stack pointer for the hypervisor's trap handler stack.
+
+When a VM-exit occurs, the stack pointer is still the guest's one, so we need to switch the stack before entering the Rust code.
+
+Allocate the hypervisor's stack in the `VCpu::new` function:
+
 ```rust [src/vcpu.rs] {8-9,15}
     pub fn new(table: &GuestPageTable, guest_entry: u64) -> Self {
         let mut hstatus: u64 = 0;
@@ -159,6 +191,8 @@ pub struct VCpu {
         }
     }
 ```
+
+Saving the guest state is done in the `trap_handler` function:
 
 ```rust [src/trap.rs] {1-2,5,7-48,53-84}
 use core::{arch::naked_asm, mem::offset_of};
@@ -249,18 +283,43 @@ pub extern "C" fn trap_handler() -> ! {
 }
 ```
 
+TODO: `vsstatus` and its friends?
+
+It's almost the same as [the exception handler in 1,000 lines OS](https://1000os.seiya.me/en/08-exception#exception-handler).
+
+It expects `sscratch` to contain the pointer to the `VCpu` struct (we'll implement it later). `csrrw` is used to do following 2 operations at once:
+
+- Restore the `VCpu` pointer from `sscratch` to `a0`
+- Save the `a0` to `sscratch`
+
+After saving the guest state, the stack pointer is switched to the hypervisor's stack by loading `host_sp` to `sp`.
+
+## `Console Putchar` hypercall
+
+Now we can implement the hypercall handler using the registers saved in the `VCpu` struct. According to [the SBI specification](https://github.com/riscv-non-isa/riscv-sbi-doc), the SBI expects the following conventions:
+
+> - An `ECALL` is used as the control transfer instruction between the supervisor and the SEE.
+> - `a7` encodes the SBI extension ID (EID),
+> - `a6` encodes the SBI function ID (FID) for a given extension ID encoded in `a7` for any SBI extension defined in or after SBI v0.2.
+> - All registers except `a0` & `a1` must be preserved across an SBI call by the callee.
+> - SBI functions must return a pair of values in `a0` and `a1`, with `a0` returning an error code.
+
+Let's implement the Console Putchar hypercall:
+
 ```rust [src/trap.rs] {1,4-7}
 pub fn handle_trap(vcpu: *mut VCpu) -> ! {
     /* ... */
 
     let vcpu = unsafe { &mut *vcpu };
-    if scause == 10 {
+    if scause == 10 /* environment call from VS-mode */ {
         panic!("SBI call: eid={:#x}, fid={:#x}, a0={:#x} ('{}')", vcpu.a7, vcpu.a6, vcpu.a0, vcpu.a0 as u8 as char);
     }
 
     panic!("trap handler: {} at {:#x} (stval={:#x})", scause_str, sepc, stval);
 }
 ```
+
+You should see the following panic - printing a character `A` from the guest!
 
 ```
 $ ./run.sh
@@ -272,14 +331,9 @@ SBI call: eid=0x1, fid=0x0, a0=0x41 ('A')
 
 ## Restoring the guest state
 
-```asm [guest.S] {3-6}
-    li a0, 'A'      # Parameter: 'A'
-    ecall           # Call SBI (hypervisor)
-    li a0, 'B'      # Parameter: 'B'
-    ecall           # Call SBI (hypervisor)
-    li a0, 'C'      # Parameter: 'C'
-    ecall           # Call SBI (hypervisor)
-```
+We've implemented the putchar call, but it doesn't go back to the guest. To do that, we need to restore the guest state after the hypercall.
+
+It's simple. Load more registers from the `VCpu` struct when entering the guest mode:
 
 ```rust [src/vcpu.rs] {1,13-45,53-83}
 use core::mem::offset_of;
@@ -371,6 +425,8 @@ impl VCpu {
 }
 ```
 
+Call the `VCpu::run` function after the hypercall:
+
 ```rust [src/trap.rs]
     if scause == 10 {
         println!("SBI call: eid={:#x}, fid={:#x}, a0={:#x} ('{}')", vcpu.a7, vcpu.a6, vcpu.a0, vcpu.a0 as u8 as char);
@@ -382,6 +438,19 @@ impl VCpu {
     vcpu.run();
 ```
 
+Lastly, add few more calls in the guest to test the hypercall:
+
+```asm [guest.S] {3-6}
+    li a0, 'A'      # Parameter: 'A'
+    ecall           # Call SBI (hypervisor)
+    li a0, 'B'      # Parameter: 'B'
+    ecall           # Call SBI (hypervisor)
+    li a0, 'C'      # Parameter: 'C'
+    ecall           # Call SBI (hypervisor)
+```
+
+If it's implemented correctly, following 3 characters should be printed:
+
 ```
 $ ./run.sh
 Booting hypervisor...
@@ -390,3 +459,5 @@ SBI call: eid=0x1, fid=0x0, a0=0x41 ('A')
 SBI call: eid=0x1, fid=0x0, a0=0x42 ('B')
 SBI call: eid=0x1, fid=0x0, a0=0x43 ('C')
 ```
+
+Good job! We've implemented a hypercall, and also VM-exit handling is working!

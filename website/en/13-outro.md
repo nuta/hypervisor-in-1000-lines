@@ -1,8 +1,8 @@
 ---
-title: Memory-Mapped I/O
+title: Outro
 ---
 
-# Memory-Mapped I/O
+# Outro
 
 > [!WARNING]
 > This chapter is work in progress.

@@ -6,7 +6,23 @@ title: Guest Page Table
 
 The next step is to map the guest memory space to run some code in the guest.
 
-TODO:
+## Guest-physical vs. Host-physical addresses
+
+With hardware-assisted virtualization enabled, RISC-V CPU (and other modern CPUs) has 4 address spaces:
+
+- Guest-virtual address (new)
+- Guest-physical address (new)
+- Host-virtual address
+- Host-physical address (so-called *physical memory space*)
+
+In the host mode, the memory addresses will be translated from host-virtual to host-physical addresses using the page table in the host.
+
+However, when the CPU is in the guest mode, the address translation will be done in 2 stages:
+
+- **Stage 1**: Guest-virtual → guest-physical (page table in `satp`)
+- **Stage 2**: Guest-physical → host-physical (guest page table in `hgatp`)
+
+This isolation is what allows multiple VMs to run simultaneously - each guest thinks it has exclusive access to physical memory, but the hypervisor secretly maps them to different host memory regions.
 
 ## Page allocator
 

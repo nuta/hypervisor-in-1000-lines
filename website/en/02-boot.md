@@ -10,7 +10,7 @@ The kernel will be written in Rust, but it's still very similar to what you'd wr
 
 ## OpenSBI
 
-Once the QEMU `virt` machine, the virtual computer we use in this book, does not boot the our hypervisor directly. Instead, it starts OpenSBI, a firmware similar to BIOS/UEFI.
+Once the QEMU `virt` machine, the virtual computer we use in this book, does not boot our hypervisor directly. Instead, it starts OpenSBI, a firmware similar to BIOS/UEFI.
 
 ## Let's boot OpenSBI
 
@@ -119,11 +119,11 @@ targets = ["riscv64gc-unknown-none-elf"]
 >
 > If you're familiar with bare-metal programming in Rust, you might be wondering *"stable? not nightly?"*.
 >
-> And the answer is ... yes, we will use stable toolchain. Bare-metal Rust used to require nightly unstable features, but thanks to the Rust team's effort, everything we need is now stabilized. Yay!
+> And the answer is ... yes, you can use stable toolchain! Bare-metal Rust used to require nightly unstable features, but thanks to the Rust team's effort, everything we need is already stabilized.
 
 ## Minimal boot code
 
-Finally we can write some Rust code. Unfrotunately, we don't have a way to print anything yet, so let it be an infinite loop for now:
+Finally we can write some Rust code. Unfortunately, we don't have a way to print anything yet, so let it be an infinite loop for now:
 
 ```rs [src/main.rs]
 #![no_std]
@@ -206,7 +206,7 @@ SECTIONS {
 
 > [!WARNING]
 >
-> This script is slightly different from the one in [OS in 1000 lines](https://github.com/nuta/operating-system-in-1000-lines/blob/main/kernel.ld). `.eh_frame` is explictly discarded.
+> This script is slightly different from the one in [OS in 1000 lines](https://github.com/nuta/operating-system-in-1000-lines/blob/main/kernel.ld). `.eh_frame` is explicitly discarded.
 
 Here are the key points of the linker script:
 
@@ -323,7 +323,7 @@ CPU#0
 ...
 ```
 
-`pc` points to 0x80200010. Accordingly to `llvm-objudmp`, it's running the `main` function. Yay!
+`pc` points to 0x80200010. According to `llvm-objdump`, it's running the `main` function. Yay!
 
 ```
 $ llvm-objdump -C -d hypervisor.elf                 

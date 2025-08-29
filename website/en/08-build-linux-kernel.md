@@ -7,6 +7,16 @@ title: Build Linux Kernel
 > [!WARNING]
 > This chapter is work in progress.
 
+In the previous chapter, we successfully booted our tiny Hello World program. However, it was not fun enough. Our next target is the real-world operating system, Linux!
+
+Before supporting Linux in our hypervisor, we need the boot image of Linux. Let's build it.
+
+## Download Linux kernel config
+
+TODO:
+
+## Build with Docker
+
 ```Dockerfile [linux/Dockerfile]
 FROM ubuntu:24.04
 

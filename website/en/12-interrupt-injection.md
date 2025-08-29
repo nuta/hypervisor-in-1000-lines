@@ -1,8 +1,8 @@
 ---
-title: Memory-Mapped I/O
+title: Interrupt Injection
 ---
 
-# Memory-Mapped I/O
+# Interrupt Injection
 
 > [!WARNING]
 > This chapter is work in progress.

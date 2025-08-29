@@ -10,11 +10,26 @@ The first thing is to enter the guest mode, which is the CPU mode of the guest o
 
 ## HS-mode and VS-mode
 
-TODO:
+The RISC-V hypervisor extension introduces two new virtualization modes: VU-mode and VS-mode.
+
+| Mode | Description |
+|------|-------------|
+| VU-mode | Virtual user mode (guest user mode) |
+| VS-mode | Virtual supervisor mode (guest kernel mode) |
+| U-mode | User mode (host user mode) |
+| HS-mode (H-mode) | Hypervisor-extended supervisor mode (host kernel mode) |
+
+This means in the guest world, in addition to the host's modes, we have separate user mode and kernel mode. 
+
+Switching between VU-mode and VS-mode (i.e. system calls in the guest) can be done by CPU automatically, without any intervention from the hypervisor. Hypervisors can focus on VM exits (mostly) from VS-mode, typically memory-mapped I/O.
+
+> [!TIP]
+>
+> To put it differently, a hardware-assisted hypervisor is not like a CPU emulator, but more like an event handler - wait for VM exits to happen, handle them in its trap handler, and go back to the guest mode as soon as possible.
 
 ## Entering HS-mode
 
-First we need to enable the hypervisor extension in QEMU.  Add `h=true` to the `-cpu` option:
+To start the guest kernel (HS-mode), first we need to enable the hypervisor extension in QEMU.  Add `h=true` to the `-cpu` option:
 
 ```sh [run.sh] {1}
     -cpu rv64,h=true \

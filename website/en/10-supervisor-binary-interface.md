@@ -236,7 +236,7 @@ pub const PLIC_END: u64 = PLIC_ADDR + 0x400000;
     fdt.property_string("compatible", "riscv,plic0")?;
     fdt.property_u32("#interrupt-cells", 1)?;
     fdt.property_null("interrupt-controller")?;
-    fdt.property_array_u64("reg", &[PLIC_ADDR 0x4000000])?;
+    fdt.property_array_u64("reg", &[PLIC_ADDR, 0x4000000])?;
     fdt.property_u32("riscv,ndev", 3)?;
     fdt.property_array_u32("interrupts-extended", &[1, 11, 1, 9])?;
     fdt.property_phandle(2)?;

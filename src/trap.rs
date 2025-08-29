@@ -2,7 +2,7 @@ use core::{arch::naked_asm, mem::offset_of};
 use alloc::vec::Vec;
 use spin::Mutex;
 
-use crate::{linux_loader::{PLIC_ADDR, PLIC_END, VIRTIO_BLK_ADDR, VIRTIO_BLK_END}, vcpu::VCpu, virtio_blk::VIRTIO_BLK};
+use crate::{linux_loader::{PLIC_ADDR, PLIC_END}, vcpu::VCpu};
 
 macro_rules! read_csr {
     ($csr:expr) => {{
@@ -188,10 +188,6 @@ fn handle_mmio_write(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
         PLIC_ADDR..PLIC_END => {
             println!("[MMIO]: ignore write to PLIC at {:#x}", guest_addr);
         }
-        VIRTIO_BLK_ADDR..VIRTIO_BLK_END => {
-            let offset = guest_addr - VIRTIO_BLK_ADDR;
-            VIRTIO_BLK.lock().handle_mmio_write(offset, value, width);
-        }
         _ => {
             panic!("[MMIO]: invalid write at {:#x} (value={:#x}, width={})", guest_addr, value, width);
         }
@@ -203,10 +199,6 @@ fn handle_mmio_read(vcpu: &mut VCpu, guest_addr: u64, reg: u64, width: u64) {
         PLIC_ADDR..PLIC_END => {
             println!("[MMIO]: ignore read from PLIC at {:#x}", guest_addr);
             0
-        }
-        VIRTIO_BLK_ADDR..VIRTIO_BLK_END => {
-            let offset = guest_addr - VIRTIO_BLK_ADDR;
-            VIRTIO_BLK.lock().handle_mmio_read(offset, width)
         }
         _ => {
             panic!("[MMIO]: invalid read at {:#x} (width={})", guest_addr, width);
