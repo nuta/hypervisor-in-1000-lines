@@ -10,7 +10,7 @@ The kernel will be written in Rust, but it's still very similar to what you'd wr
 
 ## OpenSBI
 
-Once the QEMU `virt` machine, the virtual computer we use in this book, does not boot our hypervisor directly. Instead, it starts OpenSBI, a firmware similar to BIOS/UEFI.
+The QEMU `virt` machine, the virtual computer we use in this book, does not boot our hypervisor directly. Instead, it starts OpenSBI, a firmware similar to BIOS/UEFI.
 
 ## Let's boot OpenSBI
 
