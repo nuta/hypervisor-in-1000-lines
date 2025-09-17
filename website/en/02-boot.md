@@ -26,7 +26,7 @@ $ chmod +x run.sh
 set -xue
 
 # QEMU file path
-QEMU=qemu-system-riscv32
+QEMU=qemu-system-riscv64
 
 # Start QEMU
 $QEMU -machine virt -bios default -nographic -serial mon:stdio --no-reboot
@@ -45,8 +45,8 @@ QEMU takes various options to start the virtual machine. Here are the options us
 > In macOS, you can check the path to Homebrew's QEMU with the following command:
 >
 > ```
-> $ ls $(brew --prefix)/bin/qemu-system-riscv32
-> /opt/homebrew/bin/qemu-system-riscv32
+> $ ls $(brew --prefix)/bin/qemu-system-riscv64
+> /opt/homebrew/bin/qemu-system-riscv64
 > ```
 
 Run the script and you will see the following banner:
@@ -180,15 +180,15 @@ SECTIONS {
         *(.text .text.*);
     }
 
-    .rodata : ALIGN(4) {
+    .rodata : ALIGN(8) {
         *(.rodata .rodata.*);
     }
 
-    .data : ALIGN(4) {
+    .data : ALIGN(8) {
         *(.data .data.*);
     }
 
-    .bss : ALIGN(4) {
+    .bss : ALIGN(8) {
         __bss = .;
         *(.bss .bss.* .sbss .sbss.*);
         __bss_end = .;
@@ -229,7 +229,7 @@ Let's take a closer look at the syntax of the linker script. First, `ENTRY(boot)
 
 The `*(.text .text.*)` directive places the `.text` section and any sections starting with `.text.` from all files (`*`) at that location.
 
-The `.` symbol represents the current address. It automatically increments as data is placed, such as with `*(.text)`. The statement `. += 128 * 1024` means "advance the current address by 128KB". The `ALIGN(4)` directive ensures that the current address is adjusted to a 4-byte boundary.
+The `.` symbol represents the current address. It automatically increments as data is placed, such as with `*(.text)`. The statement `. += 128 * 1024` means "advance the current address by 128KB". The `ALIGN(8)` directive ensures that the current address is adjusted to a 4-byte boundary.
 
 Finally, `__bss = .` assigns the current address to the symbol `__bss`. In C language, you can refer to a defined symbol using `extern char symbol_name`.
 

@@ -6,19 +6,19 @@ SECTIONS {
     .text :{
         KEEP(*(.text.boot));
         *(.text .text.*);
-        . = ALIGN(4);
+        . = ALIGN(8);
         *(.text.stvec);
     }
 
-    .rodata : ALIGN(4) {
+    .rodata : ALIGN(8) {
         *(.rodata .rodata.*);
     }
 
-    .data : ALIGN(4) {
+    .data : ALIGN(8) {
         *(.data .data.*);
     }
 
-    .bss : ALIGN(4) {
+    .bss : ALIGN(8) {
         __bss = .;
         *(.bss .bss.* .sbss .sbss.*);
         __bss_end = .;

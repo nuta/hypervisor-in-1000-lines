@@ -151,7 +151,7 @@ set -ev
 export PATH="$(brew --prefix llvm)/bin:$PATH"
 
 clang \
-    -Wall -Wextra --target=riscv32-unknown-elf -ffreestanding -nostdlib \
+    -Wall -Wextra --target=riscv64-unknown-elf -ffreestanding -nostdlib \
     -Wl,-eguest_boot -Wl,-Ttext=0x100000 -Wl,-Map=guest.map \
     guest.S -o guest.elf
 

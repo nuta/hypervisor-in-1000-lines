@@ -215,7 +215,7 @@ pub fn trap_handler() -> ! {
     .text :{
         KEEP(*(.text.boot));
         *(.text .text.*);
-        . = ALIGN(4);
+        . = ALIGN(8);
         *(.text.stvec);
     }
 ```
